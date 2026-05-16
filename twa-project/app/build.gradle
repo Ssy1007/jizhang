@@ -1,4 +1,6 @@
-apply plugin: 'com.android.application'
+plugins {
+    id 'com.android.application'
+}
 
 android {
     namespace 'com.jizhang.app'
@@ -13,8 +15,7 @@ android {
         manifestPlaceholders = [
             hostName: "ssy1007.github.io",
             defaultUrl: "https://ssy1007.github.io/jizhang/",
-            launcherName: "记账",
-            assetStatements: '[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": {"namespace": "web", "site": "https://ssy1007.github.io"}}]'
+            launcherName: "记账"
         ]
     }
 
