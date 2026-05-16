@@ -149,7 +149,7 @@ function renderHomeTransactionList() {
     html += buildTransactionItemHtml(tx);
   });
 
-  container.innerHTML = html.replace(/<div class="tx-detail/g, '<div class="tx-detail tx-detail-hidden');
+  container.innerHTML = html;
 
   // 恢复展开状态
   if (expandedTxId) {
@@ -638,7 +638,7 @@ function performSearch() {
     }
     html += buildTransactionItemHtml(tx);
   });
-  results.innerHTML = html.replace(/<div class="tx-detail/g, '<div class="tx-detail tx-detail-hidden');
+  results.innerHTML = html;
 
   // 恢复展开状态
   if (expandedTxId) {
