@@ -15,8 +15,23 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Download Android SDK tools
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME/android-sdk/cmdline-tools
+          curl -sL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -qo tools.zip
+          rm tools.zip
+          mv cmdline-tools latest 2>/dev/null || true
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+
+      - name: Install SDK packages
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-34" \
+            "build-tools;34.0.0" \
+            "platform-tools"
 
       - name: Generate keystore
         run: |
@@ -29,19 +44,12 @@ jobs:
             -dname "CN=jizhang,O=jizhang,C=CN"
 
       - name: Install Gradle
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq gradle
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gradle
 
       - name: Build APK
         working-directory: twa-project
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-          ANDROID_SDK=$ANDROID_HOME
-          if [ -z "$ANDROID_SDK" ]; then ANDROID_SDK=$ANDROID_SDK_ROOT; fi
-          echo "Using SDK: $ANDROID_SDK"
-          echo "sdk.dir=$ANDROID_SDK" > local.properties
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
           gradle wrapper --gradle-version 8.4 --no-daemon
           ./gradlew assembleRelease --no-daemon --stacktrace
         timeout-minutes: 20
