@@ -21,18 +21,52 @@ jobs:
       - name: Install Bubblewrap
         run: npm install -g @bubblewrap/cli
 
-      - name: Initialize Bubblewrap project
+      - name: Generate keystore
         run: |
-          bubblewrap init --manifest https://ssy1007.github.io/jizhang/manifest.json --directory ./twa-project
+          keytool -genkey -v \
+            -keystore ./android.keystore \
+            -alias jizhang \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=jizhang,O=jizhang,C=CN"
+
+      - name: Initialize TWA project
+        run: |
+          mkdir -p twa-project
+          cat > twa-project/twa-manifest.json << 'EOF'
+          {
+            "packageId": "com.jizhang.app",
+            "host": "ssy1007.github.io",
+            "name": "记账",
+            "launcherName": "记账",
+            "display": "standalone",
+            "themeColor": "#4CAF50",
+            "backgroundColor": "#F5F5F5",
+            "startUrl": "/jizhang/",
+            "iconUrl": "https://ssy1007.github.io/jizhang/icon-512.png",
+            "maskableIconUrl": "https://ssy1007.github.io/jizhang/icon-512.png",
+            "webManifestUrl": "https://ssy1007.github.io/jizhang/manifest.json",
+            "fallbackType": "customtabs",
+            "signingKey": {
+              "path": "../android.keystore",
+              "alias": "jizhang",
+              "password": "android"
+            },
+            "appVersionName": "1.0.0",
+            "appVersionCode": 1
+          }
+          EOF
 
       - name: Build APK
-        run: |
-          cd twa-project
-          bubblewrap build
+        working-directory: twa-project
+        run: bubblewrap build
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: jizhang-apk
-          path: twa-project/app-release-signed.apk
+          path: |
+            twa-project/app-release-signed.apk
+            twa-project/*.apk
           if-no-files-found: warn
