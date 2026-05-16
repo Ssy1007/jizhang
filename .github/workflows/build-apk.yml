@@ -6,46 +6,44 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: circleci/android:api-30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Node
-        run: |
-          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          apt-get install -y nodejs
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-      - name: Install Bubblewrap
-        run: npm install -g @bubblewrap/cli
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Generate keystore
         run: |
           keytool -genkey -v \
-            -keystore android.keystore \
+            -keystore twa-project/android.keystore \
             -alias jizhang \
             -keyalg RSA -keysize 2048 -validity 10000 \
             -storepass android \
             -keypass android \
             -dname "CN=jizhang,O=jizhang,C=CN"
 
-      - name: Init TWA (pipe yes to bypass prompts)
+      - name: Install Gradle
         run: |
-          yes "" | bubblewrap init \
-            --manifest "https://ssy1007.github.io/jizhang/manifest.json" \
-            --directory twa-project
-        timeout-minutes: 5
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gradle
 
       - name: Build APK
         working-directory: twa-project
-        run: bubblewrap build
-        timeout-minutes: 10
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          gradle wrapper --gradle-version 8.4
+          ./gradlew assembleRelease
+        timeout-minutes: 20
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: jizhang-apk
-          path: |
-            twa-project/*.apk
-            twa-project/**/*.apk
-          if-no-files-found: ignore
+          path: twa-project/app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
