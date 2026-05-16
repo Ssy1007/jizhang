@@ -15,7 +15,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Download Android SDK tools
+      - name: Download Android SDK
         run: |
           export ANDROID_HOME=$HOME/android-sdk
           mkdir -p $ANDROID_HOME/cmdline-tools
@@ -23,20 +23,13 @@ jobs:
           curl -sL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -qo tools.zip
           rm tools.zip
-          # The zip extracts to a cmdline-tools/ subfolder
-          if [ -d cmdline-tools ]; then
-            mv cmdline-tools latest
-          else
-            mkdir -p latest
-            mv bin lib NOTICE.txt source.properties latest/ 2>/dev/null || true
-          fi
-          ls -la latest/bin/
+          if [ -d cmdline-tools ]; then mv cmdline-tools latest; else mkdir -p latest && mv bin lib NOTICE.txt source.properties latest/ 2>/dev/null || true; fi
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
 
       - name: Install SDK packages
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" "extras;google;m2repository"
 
       - name: Generate keystore
         run: |
@@ -48,27 +41,14 @@ jobs:
             -keypass android \
             -dname "CN=jizhang,O=jizhang,C=CN"
 
-      - name: Install Gradle
+      - name: Build APK
         run: |
-          curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
-          unzip -q gradle.zip -d /opt
-          echo "/opt/gradle-8.4/bin" >> $GITHUB_PATH
-
-      - name: Step 1 - Create local.properties
-        working-directory: twa-project
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
+          cd twa-project
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          cat local.properties
-
-      - name: Step 2 - Generate Gradle wrapper
-        working-directory: twa-project
-        run: gradle wrapper --gradle-version 8.4 --no-daemon
-        timeout-minutes: 5
-
-      - name: Step 3 - Build APK
-        working-directory: twa-project
-        run: ./gradlew assembleRelease --no-daemon --stacktrace
+          curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
+          unzip -q gradle.zip
+          rm gradle.zip
+          ./gradle-8.4/bin/gradle assembleRelease --no-daemon
         timeout-minutes: 20
 
       - name: Upload APK
