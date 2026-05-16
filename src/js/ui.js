@@ -1,0 +1,1023 @@
+/* ===================================
+   记账APP - UI 渲染与交互
+   所有 DOM 操作集中在这里
+   =================================== */
+
+/* ---- 全局状态 ---- */
+var currentTxType = 'expense';        // 当前记一笔类型
+var selectedCategory = null;          // 当前选中分类
+var homePeriod = 'month';             // 首页时间维度
+var statsPeriod = 'month';            // 统计页时间维度
+var currentEditId = null;             // 正在编辑的记录ID（null=新增模式）
+var expandedTxId = null;              // 当前展开详情的记录ID
+
+/* ===================================
+   首页渲染
+   =================================== */
+
+function renderHomePage() {
+  renderHomeSummary();
+  renderHomeCategoryBreakdown();
+  renderHomeTransactionList();
+  bindHomePeriodTabs();
+}
+
+/* 首页汇总卡片 */
+function renderHomeSummary() {
+  var allTx = getTransactions();
+  var now = new Date();
+
+  // 根据时间维度计算筛选范围
+  var range = getPeriodRange(homePeriod, now);
+
+  // 筛选当前时间段的记录
+  var periodTx = allTx.filter(function (tx) {
+    return tx.date >= range.start && tx.date <= range.end;
+  });
+
+  // 计算总支出和总收入
+  var totalExpense = 0;
+  var totalIncome = 0;
+  periodTx.forEach(function (tx) {
+    if (tx.type === 'expense') totalExpense += tx.amount;
+    else totalIncome += tx.amount;
+  });
+
+  document.getElementById('summary-expense').textContent = '¥' + formatMoney(totalExpense);
+  document.getElementById('summary-income').textContent = '¥' + formatMoney(totalIncome);
+  document.getElementById('summary-balance').textContent = '¥' + formatMoney(totalIncome - totalExpense);
+
+  // 更新月份标签
+  var labels = { day: '今日', week: '本周', month: '本月', year: '本年' };
+  document.getElementById('home-month-label').textContent = labels[homePeriod] || '本月';
+
+  // 预算进度（仅月视图显示当月预算）
+  if (homePeriod === 'month') {
+    var budget = getBudget();
+    if (budget.amount > 0) {
+      var currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+      var monthTx = allTx.filter(function (tx) {
+        return tx.type === 'expense' && tx.date.startsWith(currentMonth);
+      });
+      var monthExpense = 0;
+      monthTx.forEach(function (tx) { monthExpense += tx.amount; });
+
+      var percent = Math.min(100, Math.round((monthExpense / budget.amount) * 100));
+      document.getElementById('budget-bar-wrap').style.display = 'block';
+      document.getElementById('budget-bar-fill').style.width = percent + '%';
+      document.getElementById('budget-text').textContent =
+        '预算 ¥' + formatMoney(monthExpense) + ' / ¥' + formatMoney(budget.amount) + ' (' + percent + '%)';
+
+      if (monthExpense > budget.amount && budget.alertEnabled) {
+        document.getElementById('budget-bar-fill').style.background = '#FFCDD2';
+      } else {
+        document.getElementById('budget-bar-fill').style.background = '#FFFFFF';
+      }
+      return;
+    }
+  }
+  document.getElementById('budget-bar-wrap').style.display = 'none';
+  document.getElementById('budget-text').textContent = '';
+}
+
+/* 首页分类占比 */
+function renderHomeCategoryBreakdown() {
+  var container = document.getElementById('category-bars');
+  var emptyEl = document.getElementById('category-empty');
+  var allTx = getTransactions();
+  var range = getPeriodRange(homePeriod, new Date());
+
+  // 筛选支出
+  var expenseList = allTx.filter(function (tx) {
+    return tx.type === 'expense' && tx.date >= range.start && tx.date <= range.end;
+  });
+
+  if (expenseList.length === 0) {
+    container.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  // 按分类汇总
+  var catMap = {};
+  var total = 0;
+  expenseList.forEach(function (tx) {
+    catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
+    total += tx.amount;
+  });
+
+  var cats = getCategories();
+  var html = '';
+  cats.forEach(function (cat) {
+    var amount = catMap[cat.name] || 0;
+    if (amount === 0) return;
+    var percent = Math.round((amount / total) * 100);
+    html += '<div class="category-bar-item">' +
+      '<div class="category-bar-color" style="background:' + cat.color + ';"></div>' +
+      '<div class="category-bar-info">' +
+        '<div class="category-bar-name"><span>' + cat.icon + ' ' + cat.name + '</span><span>¥' + formatMoney(amount) + '</span></div>' +
+        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + percent + '%;background:' + cat.color + ';"></div></div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  container.innerHTML = html;
+}
+
+/* 首页交易列表 */
+function renderHomeTransactionList() {
+  var container = document.getElementById('home-transaction-list');
+  var allTx = getTransactions();
+
+  if (allTx.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">还没有记录，点击下方 + 开始记一笔吧</div></div>';
+    return;
+  }
+
+  // 只显示最近 30 条
+  var recent = allTx.slice(0, 30);
+  var html = '';
+
+  // 按日期分组
+  var currentDate = '';
+  recent.forEach(function (tx) {
+    if (tx.date !== currentDate) {
+      currentDate = tx.date;
+      html += '<div class="date-group-title">' + formatDateLabel(tx.date) + '</div>';
+    }
+    html += buildTransactionItemHtml(tx);
+  });
+
+  container.innerHTML = html.replace(/<div class="tx-detail/g, '<div class="tx-detail tx-detail-hidden');
+
+  // 恢复展开状态
+  if (expandedTxId) {
+    showTxDetail(expandedTxId);
+  }
+
+  // 绑定点击事件
+  bindTransactionClicks(container);
+}
+
+/* 首页时间维度切换 */
+
+/* 构建单条交易记录的HTML */
+function buildTransactionItemHtml(tx) {
+  var cat = findCategoryByName(tx.category);
+  var icon = cat ? cat.icon : '💰';
+  var amountClass = tx.type === 'expense' ? 'expense' : 'income';
+  var prefix = tx.type === 'expense' ? '-' : '+';
+  var isExpanded = (expandedTxId === tx.id);
+
+  var html = '<div class="transaction-item' + (isExpanded ? ' expanded' : '') + '" data-id="' + tx.id + '">' +
+    '<div class="tx-icon">' + icon + '</div>' +
+    '<div class="tx-info">' +
+      '<div class="tx-category">' + (tx.category || '收入') + '</div>' +
+      (tx.note ? '<div class="tx-note">' + escapeHtml(tx.note) + '</div>' : '') +
+    '</div>' +
+    '<div class="tx-amount ' + amountClass + '">' + prefix + '¥' + formatMoney(tx.amount) + '</div>' +
+  '</div>' +
+  '<div class="tx-detail' + (isExpanded ? ' show' : '') + '" data-id="' + tx.id + '">' +
+    '<div class="tx-detail-row"><span>日期</span><span>' + tx.date + '</span></div>' +
+    '<div class="tx-detail-row"><span>类型</span><span>' + (tx.type === 'expense' ? '支出' : '收入') + '</span></div>' +
+    (tx.note ? '<div class="tx-detail-row"><span>备注</span><span>' + escapeHtml(tx.note) + '</span></div>' : '') +
+    '<div class="tx-actions">' +
+      '<button class="tx-action-btn edit-btn" data-action="edit" data-id="' + tx.id + '">✏ 编辑</button>' +
+      '<button class="tx-action-btn delete-btn" data-action="delete" data-id="' + tx.id + '">🗑 删除</button>' +
+    '</div>' +
+  '</div>';
+
+  return html;
+}
+
+/* 绑定交易记录点击事件 */
+function bindTransactionClicks(container) {
+  // 点击交易项展开/收起详情
+  container.querySelectorAll('.transaction-item').forEach(function (item) {
+    item.addEventListener('click', function (e) {
+      // 不拦截按钮点击
+      if (e.target.closest('button')) return;
+      var txId = item.getAttribute('data-id');
+      toggleTxDetail(txId);
+    });
+  });
+
+  // 编辑按钮
+  container.querySelectorAll('[data-action="edit"]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var txId = btn.getAttribute('data-id');
+      openEditSheet(txId);
+    });
+  });
+
+  // 删除按钮
+  container.querySelectorAll('[data-action="delete"]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var txId = btn.getAttribute('data-id');
+      deleteTxHandler(txId);
+    });
+  });
+}
+
+/* 切换详情展开/收起 */
+function toggleTxDetail(txId) {
+  if (expandedTxId === txId) {
+    hideTxDetail(txId);
+    expandedTxId = null;
+  } else {
+    if (expandedTxId) hideTxDetail(expandedTxId);
+    showTxDetail(txId);
+    expandedTxId = txId;
+  }
+}
+
+/* 展开详情 */
+function showTxDetail(txId) {
+  var item = document.querySelector('.transaction-item[data-id="' + txId + '"]');
+  var detail = document.querySelector('.tx-detail[data-id="' + txId + '"]');
+  if (item) item.classList.add('expanded');
+  if (detail) detail.classList.add('show');
+}
+
+/* 收起详情 */
+function hideTxDetail(txId) {
+  var item = document.querySelector('.transaction-item[data-id="' + txId + '"]');
+  var detail = document.querySelector('.tx-detail[data-id="' + txId + '"]');
+  if (item) item.classList.remove('expanded');
+  if (detail) detail.classList.remove('show');
+}
+
+/* 删除交易记录 */
+function deleteTxHandler(txId) {
+  showConfirm('删除记录', '确定要删除这条记录吗？此操作不可恢复。', function () {
+    deleteTransaction(txId);
+    if (expandedTxId === txId) expandedTxId = null;
+    renderHomePage();
+    if (document.getElementById('page-search').classList.contains('active')) {
+      performSearch();
+    }
+  });
+}
+function bindHomePeriodTabs() {
+  var tabs = document.querySelectorAll('#home-period-tabs .period-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      homePeriod = tab.getAttribute('data-period');
+      expandedTxId = null;
+      renderHomeSummary();
+      renderHomeCategoryBreakdown();
+    });
+  });
+}
+
+/* ===================================
+   统计页渲染
+   =================================== */
+
+function renderStatsPage() {
+  bindStatsPeriodTabs();
+  renderStatsData();
+}
+
+function bindStatsPeriodTabs() {
+  var tabs = document.querySelectorAll('#stats-period-tabs .period-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      statsPeriod = tab.getAttribute('data-period');
+      renderStatsData();
+    });
+  });
+}
+
+function renderStatsData() {
+  var allTx = getTransactions();
+  var range = getPeriodRange(statsPeriod, new Date());
+
+  var periodTx = allTx.filter(function (tx) {
+    return tx.date >= range.start && tx.date <= range.end;
+  });
+
+  var totalExpense = 0;
+  var totalIncome = 0;
+  var catMap = {};
+
+  periodTx.forEach(function (tx) {
+    if (tx.type === 'expense') {
+      totalExpense += tx.amount;
+      catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
+    } else {
+      totalIncome += tx.amount;
+    }
+  });
+
+  document.getElementById('stats-total-expense').textContent = '¥' + formatMoney(totalExpense);
+  document.getElementById('stats-total-income').textContent = '¥' + formatMoney(totalIncome);
+  document.getElementById('stats-balance').textContent = '¥' + formatMoney(totalIncome - totalExpense);
+
+  // 分类排行
+  var ranking = document.getElementById('stats-category-ranking');
+  var emptyEl = document.getElementById('stats-empty');
+  var cats = getCategories();
+
+  // 按金额排序
+  var sorted = cats.map(function (cat) {
+    return { name: cat.name, icon: cat.icon, color: cat.color, amount: catMap[cat.name] || 0 };
+  }).filter(function (item) { return item.amount > 0; })
+    .sort(function (a, b) { return b.amount - a.amount; });
+
+  if (sorted.length === 0) {
+    ranking.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var maxAmount = sorted[0].amount;
+  var html = '';
+  sorted.forEach(function (item, index) {
+    var percent = Math.round((item.amount / maxAmount) * 100);
+    html += '<div class="category-bar-item">' +
+      '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
+      '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
+      '<div class="category-bar-info">' +
+        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>¥' + formatMoney(item.amount) + '</span></div>' +
+        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + percent + '%;background:' + item.color + ';"></div></div>' +
+      '</div>' +
+    '</div>';
+  });
+  ranking.innerHTML = html;
+}
+
+/* ===================================
+   搜索页渲染
+   =================================== */
+
+function renderSearchPage() {
+  renderSearchFilterTags();
+  bindSearchEvents();
+}
+
+/* 渲染筛选标签 */
+function renderSearchFilterTags() {
+  var container = document.getElementById('search-filter-tags');
+  var cats = getCategories();
+  var html = '<div class="filter-tag active" data-category="all">全部</div>';
+  cats.forEach(function (cat) {
+    html += '<div class="filter-tag" data-category="' + cat.name + '">' + cat.icon + ' ' + cat.name + '</div>';
+  });
+  container.innerHTML = html;
+
+  // 绑定筛选点击
+  container.querySelectorAll('.filter-tag').forEach(function (tag) {
+    tag.addEventListener('click', function () {
+      container.querySelectorAll('.filter-tag').forEach(function (t) { t.classList.remove('active'); });
+      tag.classList.add('active');
+      performSearch();
+    });
+  });
+}
+
+/* 绑定搜索事件 */
+function bindSearchEvents() {
+  var input = document.getElementById('search-input');
+  input.addEventListener('input', function () {
+    performSearch();
+  });
+}
+
+/* 执行搜索 */
+function performSearch() {
+  var keyword = document.getElementById('search-input').value.trim().toLowerCase();
+  var activeTag = document.querySelector('#search-filter-tags .filter-tag.active');
+  var categoryFilter = activeTag ? activeTag.getAttribute('data-category') : 'all';
+
+  var results = document.getElementById('search-results');
+  var emptyEl = document.getElementById('search-empty');
+
+  var allTx = getTransactions();
+
+  // 筛选
+  var filtered = allTx.filter(function (tx) {
+    // 分类筛选
+    if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false;
+    // 关键字筛选
+    if (!keyword) return true;
+    return (tx.note && tx.note.toLowerCase().indexOf(keyword) !== -1) ||
+           (tx.category && tx.category.toLowerCase().indexOf(keyword) !== -1) ||
+           String(tx.amount).indexOf(keyword) !== -1;
+  });
+
+  if (filtered.length === 0) {
+    results.innerHTML = '';
+    emptyEl.style.display = 'block';
+    if (keyword) {
+      emptyEl.querySelector('.empty-text').textContent = '没有找到匹配的记录';
+    } else {
+      emptyEl.querySelector('.empty-text').textContent = '输入关键字搜索历史记录';
+    }
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var html = '';
+  var currentDate = '';
+  filtered.forEach(function (tx) {
+    if (tx.date !== currentDate) {
+      currentDate = tx.date;
+      html += '<div class="date-group-title">' + formatDateLabel(tx.date) + '</div>';
+    }
+    html += buildTransactionItemHtml(tx);
+  });
+  results.innerHTML = html.replace(/<div class="tx-detail/g, '<div class="tx-detail tx-detail-hidden');
+
+  // 恢复展开状态
+  if (expandedTxId) {
+    var stillExists = filtered.some(function (tx) { return tx.id === expandedTxId; });
+    if (stillExists) showTxDetail(expandedTxId);
+    else expandedTxId = null;
+  }
+
+  bindTransactionClicks(results);
+}
+
+/* ===================================
+   设置页渲染
+   =================================== */
+
+function renderSettingsPage() {
+  renderThemePicker();
+  renderBudgetDisplay();
+  bindSettingsEvents();
+}
+
+/* 主题选择器 */
+function renderThemePicker() {
+  var settings = getSettings();
+  var dots = document.querySelectorAll('#theme-picker .theme-color-dot');
+  dots.forEach(function (dot) {
+    dot.classList.remove('selected');
+    if (dot.getAttribute('data-theme') === settings.theme) {
+      dot.classList.add('selected');
+    }
+  });
+}
+
+/* 预算显示 */
+function renderBudgetDisplay() {
+  var budget = getBudget();
+  var display = document.getElementById('budget-display');
+  if (budget.amount > 0) {
+    display.textContent = '¥' + formatMoney(budget.amount) + ' ▶';
+  } else {
+    display.textContent = '未设置 ▶';
+  }
+}
+
+/* 绑定设置页事件 */
+function bindSettingsEvents() {
+  // 主题切换
+  document.querySelectorAll('#theme-picker .theme-color-dot').forEach(function (dot) {
+    dot.addEventListener('click', function () {
+      var theme = dot.getAttribute('data-theme');
+      applyTheme(theme);
+      var settings = getSettings();
+      settings.theme = theme;
+      saveSettings(settings);
+      renderThemePicker();
+    });
+  });
+
+  // 预算设置
+  document.getElementById('settings-budget').addEventListener('click', openBudgetSheet);
+
+  // 分类管理
+  document.getElementById('settings-category').addEventListener('click', openCategorySheet);
+
+  // 清除数据
+  document.getElementById('settings-clear').addEventListener('click', function () {
+    showConfirm('清除全部数据', '所有记账记录、分类和设置将被删除，此操作不可恢复。', function () {
+      localStorage.clear();
+      initStorage();
+      switchPage('home');
+    });
+  });
+}
+
+/* ===================================
+   记一笔弹窗
+   =================================== */
+
+function openAddSheet() {
+  currentEditId = null;
+  var overlay = document.getElementById('add-sheet-overlay');
+  overlay.classList.add('show');
+
+  // 更新弹窗标题
+  document.querySelector('#add-sheet .sheet-title').textContent = '记一笔';
+
+  // 隐藏编辑模式的删除按钮
+  var deleteBtn = document.getElementById('sheet-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = 'none';
+
+  // 设置默认日期为今天
+  document.getElementById('input-date').value = getTodayStr();
+
+  // 清空输入
+  document.getElementById('input-amount').value = '';
+  document.getElementById('input-note').value = '';
+
+  // 默认支出
+  currentTxType = 'expense';
+  selectedCategory = null;
+  updateTypeToggleUI();
+  renderCategoryChips();
+
+  // 金额输入聚焦
+  setTimeout(function () {
+    document.getElementById('input-amount').focus();
+  }, 300);
+}
+
+/* 打开编辑弹窗 */
+function openEditSheet(txId) {
+  // 查找记录
+  var allTx = getTransactions();
+  var tx = null;
+  for (var i = 0; i < allTx.length; i++) {
+    if (allTx[i].id === txId) { tx = allTx[i]; break; }
+  }
+  if (!tx) return;
+
+  currentEditId = txId;
+  var overlay = document.getElementById('add-sheet-overlay');
+  overlay.classList.add('show');
+
+  // 更新弹窗标题
+  document.querySelector('#add-sheet .sheet-title').textContent = '编辑记录';
+
+  // 显示删除按钮
+  var deleteBtn = document.getElementById('sheet-delete-btn');
+  if (deleteBtn) deleteBtn.style.display = 'block';
+
+  // 填充数据
+  document.getElementById('input-amount').value = tx.amount;
+  document.getElementById('input-date').value = tx.date;
+  document.getElementById('input-note').value = tx.note;
+
+  // 设置类型
+  currentTxType = tx.type;
+  updateTypeToggleUI();
+
+  // 设置分类
+  if (tx.type === 'expense') {
+    selectedCategory = findCategoryByName(tx.category);
+    renderCategoryChips();
+  }
+
+  setTimeout(function () {
+    document.getElementById('input-amount').focus();
+  }, 300);
+}
+
+function closeAddSheet() {
+  document.getElementById('add-sheet-overlay').classList.remove('show');
+  currentEditId = null;
+  selectedCategory = null;
+}
+
+/* 更新类型切换按钮 */
+function updateTypeToggleUI() {
+  var expenseBtn = document.querySelector('#type-toggle [data-type="expense"]');
+  var incomeBtn = document.querySelector('#type-toggle [data-type="income"]');
+  expenseBtn.classList.remove('active', 'expense-active');
+  incomeBtn.classList.remove('active', 'income-active');
+
+  if (currentTxType === 'expense') {
+    expenseBtn.classList.add('active', 'expense-active');
+    document.getElementById('category-select-group').style.display = 'block';
+  } else {
+    incomeBtn.classList.add('active', 'income-active');
+    document.getElementById('category-select-group').style.display = 'none';
+  }
+}
+
+/* 渲染分类选择 */
+function renderCategoryChips() {
+  var container = document.getElementById('category-scroll');
+  var cats = getCategories();
+  var html = '';
+  cats.forEach(function (cat) {
+    var selectedClass = '';
+    if (selectedCategory && selectedCategory.name === cat.name) {
+      selectedClass = ' selected';
+    }
+    html += '<div class="category-chip' + selectedClass + '" data-category="' + cat.name + '">' +
+      '<span class="chip-icon">' + cat.icon + '</span>' +
+      '<span class="chip-name">' + cat.name + '</span>' +
+    '</div>';
+  });
+  container.innerHTML = html;
+
+  // 默认选中第一个
+  if (!selectedCategory && cats.length > 0) {
+    selectedCategory = cats[0];
+    container.querySelector('.category-chip').classList.add('selected');
+  }
+
+  // 绑定点击
+  container.querySelectorAll('.category-chip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      container.querySelectorAll('.category-chip').forEach(function (c) { c.classList.remove('selected'); });
+      chip.classList.add('selected');
+      var name = chip.getAttribute('data-category');
+      selectedCategory = findCategoryByName(name);
+    });
+  });
+}
+
+/* 绑定记一笔弹窗事件 */
+function bindSheetEvents() {
+  // 关闭按钮
+  document.getElementById('sheet-close').addEventListener('click', closeAddSheet);
+  // 点击遮罩关闭
+  document.getElementById('add-sheet-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeAddSheet();
+  });
+
+  // 类型切换
+  document.querySelectorAll('#type-toggle .type-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      currentTxType = btn.getAttribute('data-type');
+      updateTypeToggleUI();
+      if (currentTxType === 'expense') {
+        renderCategoryChips();
+      }
+    });
+  });
+
+  // 保存按钮
+  document.getElementById('btn-save').addEventListener('click', saveTransactionHandler);
+
+  // 编辑模式删除按钮
+  document.getElementById('sheet-delete-btn').addEventListener('click', function () {
+    if (!currentEditId) return;
+    deleteTxHandler(currentEditId);
+    closeAddSheet();
+  });
+
+  // 预算弹窗
+  document.getElementById('budget-sheet-close').addEventListener('click', closeBudgetSheet);
+  document.getElementById('budget-sheet-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeBudgetSheet();
+  });
+  document.getElementById('btn-budget-save').addEventListener('click', saveBudgetHandler);
+
+  // 分类弹窗
+  document.getElementById('category-sheet-close').addEventListener('click', closeCategorySheet);
+  document.getElementById('category-sheet-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeCategorySheet();
+  });
+  document.getElementById('btn-add-category').addEventListener('click', addCategoryHandler);
+
+  // 确认弹窗
+  document.getElementById('confirm-cancel').addEventListener('click', closeConfirm);
+  document.getElementById('confirm-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeConfirm();
+  });
+}
+
+/* 保存交易记录（新增或更新） */
+function saveTransactionHandler() {
+  var amountStr = document.getElementById('input-amount').value.trim();
+  var date = document.getElementById('input-date').value;
+  var note = document.getElementById('input-note').value.trim();
+
+  // 验证金额
+  var amount = parseFloat(amountStr);
+  if (isNaN(amount) || amount <= 0) {
+    shakeElement(document.getElementById('input-amount'));
+    return;
+  }
+  amount = Math.round(amount * 100) / 100; // 保留两位小数
+
+  // 支出必须有分类
+  if (currentTxType === 'expense' && !selectedCategory) {
+    return;
+  }
+
+  var txData = {
+    type: currentTxType,
+    amount: amount,
+    category: currentTxType === 'income' ? '收入' : selectedCategory.name,
+    note: note,
+    date: date || getTodayStr()
+  };
+
+  if (currentEditId) {
+    // 更新已有记录
+    updateTransaction(currentEditId, txData);
+    if (expandedTxId === currentEditId) expandedTxId = null;
+  } else {
+    // 新增记录
+    txData.id = generateId();
+    txData.createdAt = new Date().toISOString();
+    saveTransaction(txData);
+
+    // 检查预算（仅新增时检查，避免编辑后重复提醒）
+    if (currentTxType === 'expense') {
+      checkBudgetAlert();
+    }
+  }
+
+  closeAddSheet();
+  renderHomePage();
+
+  // 如果当前在搜索页面，刷新搜索结果
+  if (document.getElementById('page-search').classList.contains('active')) {
+    performSearch();
+  }
+
+  // 轻微振动反馈
+  if (navigator.vibrate) {
+    navigator.vibrate(15);
+  }
+}
+
+/* 检查预算并提醒 */
+function checkBudgetAlert() {
+  var budget = getBudget();
+  if (budget.amount <= 0 || !budget.alertEnabled) return;
+
+  var now = new Date();
+  var currentMonth = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  var allTx = getTransactions();
+  var monthExpense = 0;
+  allTx.forEach(function (tx) {
+    if (tx.type === 'expense' && tx.date.startsWith(currentMonth)) {
+      monthExpense += tx.amount;
+    }
+  });
+
+  if (monthExpense > budget.amount) {
+    setTimeout(function () {
+      alert('⚠ 本月支出已超出预算！\n预算：¥' + formatMoney(budget.amount) + '\n已支出：¥' + formatMoney(monthExpense));
+    }, 500);
+  }
+}
+
+/* ===================================
+   预算弹窗
+   =================================== */
+
+function openBudgetSheet() {
+  var budget = getBudget();
+  document.getElementById('input-budget').value = budget.amount > 0 ? budget.amount : '';
+  document.getElementById('budget-sheet-overlay').classList.add('show');
+  setTimeout(function () {
+    document.getElementById('input-budget').focus();
+  }, 300);
+}
+
+function closeBudgetSheet() {
+  document.getElementById('budget-sheet-overlay').classList.remove('show');
+}
+
+function saveBudgetHandler() {
+  var amountStr = document.getElementById('input-budget').value.trim();
+  var amount = parseFloat(amountStr);
+  if (amountStr === '' || amountStr === '0') {
+    amount = 0;
+  } else if (isNaN(amount) || amount < 0) {
+    shakeElement(document.getElementById('input-budget'));
+    return;
+  }
+
+  saveBudget({ amount: Math.round(amount * 100) / 100, alertEnabled: true });
+  closeBudgetSheet();
+  renderBudgetDisplay();
+  renderHomeSummary();
+}
+
+/* ===================================
+   分类管理弹窗
+   =================================== */
+
+function openCategorySheet() {
+  document.getElementById('category-sheet-overlay').classList.add('show');
+  document.getElementById('input-new-category').value = '';
+  renderCategoryManageList();
+}
+
+function closeCategorySheet() {
+  document.getElementById('category-sheet-overlay').classList.remove('show');
+}
+
+/* 渲染分类管理列表 */
+function renderCategoryManageList() {
+  var container = document.getElementById('category-manage-list');
+  var cats = getCategories();
+  var html = '';
+  cats.forEach(function (cat) {
+    html += '<div class="category-list-item">' +
+      '<div class="category-list-left">' +
+        '<span class="category-list-icon">' + cat.icon + '</span>' +
+        '<span class="category-list-name">' + cat.name + '</span>' +
+        (cat.isDefault ? '<span style="font-size:11px;color:var(--text-secondary);">(默认)</span>' : '') +
+      '</div>' +
+      (!cat.isDefault ? '<button class="category-list-delete" data-id="' + cat.id + '">🗑️</button>' : '') +
+    '</div>';
+  });
+  container.innerHTML = html;
+
+  // 绑定删除按钮
+  container.querySelectorAll('.category-list-delete').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var catId = btn.getAttribute('data-id');
+      var cat = getCategories().find(function (c) { return c.id === catId; });
+      if (!cat) return;
+
+      showConfirm('删除分类', '确定要删除" ' + cat.name + ' "分类吗？已有记录不受影响。', function () {
+        removeCategory(catId);
+        renderCategoryManageList();
+        if (selectedCategory && selectedCategory.id === catId) {
+          selectedCategory = getCategories()[0];
+        }
+      });
+    });
+  });
+}
+
+/* 添加分类 */
+function addCategoryHandler() {
+  var name = document.getElementById('input-new-category').value.trim();
+  if (!name) { return; }
+
+  // 检查重复
+  var cats = getCategories();
+  var exists = cats.some(function (c) { return c.name === name; });
+  if (exists) {
+    shakeElement(document.getElementById('input-new-category'));
+    return;
+  }
+
+  // 随机分配一个颜色
+  var colors = ['#FF9800', '#2196F3', '#E91E63', '#9C27B0', '#00BCD4', '#795548', '#8BC34A'];
+  var color = colors[Math.floor(Math.random() * colors.length)];
+
+  addCategory(name, color, '🏷️');
+  document.getElementById('input-new-category').value = '';
+  renderCategoryManageList();
+}
+
+/* ===================================
+   确认弹窗
+   =================================== */
+
+var confirmCallback = null;
+
+function showConfirm(title, text, cb) {
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-text').textContent = text;
+  document.getElementById('confirm-overlay').classList.add('show');
+  confirmCallback = cb;
+}
+
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('show');
+  confirmCallback = null;
+}
+
+/* 确认按钮 */
+document.addEventListener('DOMContentLoaded', function () {
+  document.getElementById('confirm-ok').addEventListener('click', function () {
+    closeConfirm();
+    if (confirmCallback) {
+      confirmCallback();
+    }
+  });
+});
+
+/* ===================================
+   主题切换
+   =================================== */
+
+/* 主题定义 */
+var THEMES = {
+  green:  { primary: '#4CAF50', primaryLight: '#E8F5E9', primaryDark: '#388E3C' },
+  blue:   { primary: '#2196F3', primaryLight: '#E3F2FD', primaryDark: '#1976D2' },
+  pink:   { primary: '#E91E63', primaryLight: '#FCE4EC', primaryDark: '#C2185B' },
+  purple: { primary: '#9C27B0', primaryLight: '#F3E5F5', primaryDark: '#7B1FA2' },
+  white:  { primary: '#607D8B', primaryLight: '#ECEFF1', primaryDark: '#455A64' }
+};
+
+function applyTheme(themeName) {
+  var theme = THEMES[themeName] || THEMES.green;
+  var root = document.documentElement;
+  root.style.setProperty('--primary', theme.primary);
+  root.style.setProperty('--primary-light', theme.primaryLight);
+  root.style.setProperty('--primary-dark', theme.primaryDark);
+
+  // 更新 FAB 阴影颜色
+  var fab = document.querySelector('.fab');
+  if (fab) {
+    fab.style.boxShadow = '0 4px 12px ' + theme.primary + '66';
+  }
+
+  // 更新 theme-color meta 标签
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute('content', theme.primary);
+  }
+}
+
+/* ===================================
+   工具函数
+   =================================== */
+
+/* 获取今天的日期字符串 */
+function getTodayStr() {
+  var now = new Date();
+  return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+}
+
+/* 获取时间段范围 */
+function getPeriodRange(period, now) {
+  var y = now.getFullYear();
+  var m = now.getMonth();
+  var d = now.getDate();
+  var dayOfWeek = now.getDay() || 7; // 周日为7
+
+  var start, end;
+  switch (period) {
+    case 'day':
+      start = end = getTodayStr();
+      break;
+    case 'week':
+      // 周一到周日
+      var mon = new Date(y, m, d - dayOfWeek + 1);
+      var sun = new Date(y, m, d - dayOfWeek + 7);
+      start = formatDateObj(mon);
+      end = formatDateObj(sun);
+      break;
+    case 'month':
+      start = y + '-' + String(m + 1).padStart(2, '0') + '-01';
+      end = y + '-' + String(m + 1).padStart(2, '0') + '-' + String(new Date(y, m + 1, 0).getDate()).padStart(2, '0');
+      break;
+    case 'year':
+      start = y + '-01-01';
+      end = y + '-12-31';
+      break;
+    default:
+      start = end = getTodayStr();
+  }
+  return { start: start, end: end };
+}
+
+/* Date 对象转日期字符串 */
+function formatDateObj(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/* 格式化金额（保留两位小数） */
+function formatMoney(amount) {
+  return amount.toFixed(2);
+}
+
+/* 格式化日期显示标签 */
+function formatDateLabel(dateStr) {
+  var today = getTodayStr();
+  var yesterday = formatDateObj(new Date(Date.now() - 86400000));
+
+  if (dateStr === today) return '今天';
+  if (dateStr === yesterday) return '昨天';
+
+  var parts = dateStr.split('-');
+  return parseInt(parts[1], 10) + '月' + parseInt(parts[2], 10) + '日';
+}
+
+/* HTML 转义（防XSS） */
+function escapeHtml(str) {
+  var div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* 元素抖动（输入错误提示） */
+function shakeElement(el) {
+  el.style.animation = 'none';
+  el.offsetHeight; // 回流重置
+  el.style.animation = 'shake 0.3s ease';
+  setTimeout(function () { el.style.animation = ''; }, 300);
+}
+
+// 抖动动画
+var shakeStyle = document.createElement('style');
+shakeStyle.textContent = '@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-6px);} 75%{transform:translateX(6px);} }';
+document.head.appendChild(shakeStyle);

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\cc\\\\jizhang\\\\src\\\\css\")",
+      "PowerShell(New-Item -ItemType Directory -Force -Path \"c:\\\\cc\\\\jizhang\\\\src\\\\js\")"
+    ]
+  }
+}
