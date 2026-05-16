@@ -48,7 +48,7 @@ jobs:
           curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
           unzip -q gradle.zip
           rm gradle.zip
-          ./gradle-8.4/bin/gradle assembleRelease --no-daemon
+          ./gradle-8.4/bin/gradle assembleRelease --no-daemon --stacktrace 2>&1
         timeout-minutes: 20
 
       - name: Upload APK
