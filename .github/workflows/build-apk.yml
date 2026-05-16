@@ -29,7 +29,7 @@ jobs:
       - name: Install SDK packages
         run: |
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" "extras;google;m2repository"
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
       - name: Generate keystore
         run: |
@@ -42,13 +42,18 @@ jobs:
             -dname "CN=jizhang,O=jizhang,C=CN"
 
       - name: Build APK
+        working-directory: twa-project
         run: |
-          cd twa-project
+          set -ex
+          echo "ANDROID_HOME=$ANDROID_HOME"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
+          cat local.properties
+          ls -la $ANDROID_HOME/platforms/
+          ls -la $ANDROID_HOME/build-tools/
           curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
+          ls -la gradle.zip
           unzip -q gradle.zip
-          rm gradle.zip
-          ./gradle-8.4/bin/gradle assembleRelease --no-daemon --stacktrace 2>&1
+          ./gradle-8.4/bin/gradle assembleRelease --no-daemon --stacktrace --info 2>&1 | tail -100
         timeout-minutes: 20
 
       - name: Upload APK
