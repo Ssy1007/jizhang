@@ -10,9 +10,8 @@ var homePeriod = 'month';             // 首页时间维度
 var statsPeriod = 'month';            // 统计页时间维度
 var currentEditId = null;             // 正在编辑的记录ID（null=新增模式）
 var expandedTxId = null;              // 当前展开详情的记录ID
-var homeView = 'categories';          // 首页视图：categories / items / transactions
-var homeViewCat = null;               // 当前查看的分类
-var homeViewItem = null;              // 当前查看的二级分类名称
+var expandedCat = null;              // 当前展开的一级分类（null=无）
+var expandedItem = null;             // 当前展开的二级分类名称（null=无）
 
 /* ===================================
    首页渲染
@@ -21,35 +20,11 @@ var homeViewItem = null;              // 当前查看的二级分类名称
 function renderHomePage() {
   renderHomeSummary();
   bindHomePeriodTabs();
-  if (homeView === 'categories') {
-    renderCategoryList();
-  } else if (homeView === 'items') {
-    renderItemList(homeViewCat);
-  } else if (homeView === 'transactions') {
-    renderTransactionList(homeViewCat, homeViewItem);
-  }
+  renderHomeContent();
 }
 
-/* 返回上级视图 */
-function goBackHomeView() {
-  if (homeView === 'transactions') {
-    homeView = 'items';
-    homeViewItem = null;
-  } else if (homeView === 'items') {
-    homeView = 'categories';
-    homeViewCat = null;
-  }
-  expandedTxId = null;
-  renderHomePage();
-}
-
-/* 一级视图：分类列表 */
-function renderCategoryList() {
-  document.getElementById('home-month-label').textContent = getPeriodLabel();
-  document.getElementById('category-breakdown').style.display = 'block';
-  document.getElementById('home-transaction-list').style.display = 'block';
-
-  var container = document.getElementById('home-transaction-list');
+/* 首页主体内容 */
+function renderHomeContent() {
   var allTx = getTransactions();
   var range = getPeriodRange(homePeriod, new Date());
 
@@ -58,9 +33,10 @@ function renderCategoryList() {
     return tx.type === 'expense' && tx.date >= range.start && tx.date <= range.end;
   });
 
+  var container = document.getElementById('home-transaction-list');
+
   if (expenseList.length === 0) {
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">还没有记录，点击下方 + 开始记一笔吧</div></div>';
-    document.getElementById('category-breakdown').style.display = 'none';
     return;
   }
 
@@ -74,146 +50,199 @@ function renderCategoryList() {
   var totalAll = 0;
   cats.forEach(function (cat) { totalAll += (catMap[cat.name] || 0); });
 
+  var daysInPeriod = getPeriodDays(range);
   var html = '';
+
   cats.forEach(function (cat) {
     var amount = catMap[cat.name] || 0;
     if (amount === 0) return;
     var pct = Math.round(amount / totalAll * 100);
-    html += '<div class="card cat-card" data-cat="' + cat.name + '" style="cursor:pointer;margin-bottom:8px;">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
-        '<div style="display:flex;align-items:center;gap:10px;">' +
-          '<span style="font-size:24px;">' + cat.icon + '</span>' +
-          '<div><div style="font-size:15px;font-weight:600;">' + cat.name + '</div>' +
-          '<div style="font-size:12px;color:var(--text-secondary);">点击查看明细 ▶</div></div>' +
+    var dailyAvg = (daysInPeriod > 0) ? formatMoney(amount / daysInPeriod) : formatMoney(amount);
+
+    var isExpanded = (expandedCat === cat.name);
+    html += '<div class="card cat-card" style="margin-bottom:8px;">' +
+      '<div class="cat-header" data-cat="' + cat.name + '" style="cursor:pointer;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+          '<div style="display:flex;align-items:center;gap:10px;">' +
+            '<span style="font-size:24px;">' + cat.icon + '</span>' +
+            '<div>' +
+              '<div style="font-size:15px;font-weight:600;">' + cat.name + '</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + dailyAvg + ' · ' + (isExpanded ? '▲ 收起' : '▼ 展开') + '</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="text-align:right;">' +
+            '<div style="font-size:18px;font-weight:700;color:var(--expense);">¥' + formatMoney(amount) + '</div>' +
+            '<div style="font-size:11px;color:var(--text-secondary);">' + pct + '%</div>' +
+          '</div>' +
         '</div>' +
-        '<div style="text-align:right;"><div style="font-size:18px;font-weight:700;color:var(--expense);">¥' + formatMoney(amount) + '</div>' +
-        '<div style="font-size:11px;color:var(--text-secondary);">' + pct + '%</div></div>' +
-      '</div>' +
-      '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + pct + '%;background:' + cat.color + ';"></div></div>' +
+        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + pct + '%;background:' + cat.color + ';"></div></div>' +
       '</div>';
+
+    // 如果展开，显示二级分类
+    if (isExpanded) {
+      html += '<div class="cat-items" style="margin-top:8px;padding-left:8px;border-left:3px solid ' + cat.color + ';">';
+
+      // 按名称分组
+      var nameMap = {};
+      var nameTxs = {};
+      var noNameTotal = 0;
+      expenseList.forEach(function (tx) {
+        if (tx.category !== cat.name) return;
+        if (tx.itemName) {
+          nameMap[tx.itemName] = (nameMap[tx.itemName] || 0) + tx.amount;
+          if (!nameTxs[tx.itemName]) nameTxs[tx.itemName] = [];
+          nameTxs[tx.itemName].push(tx);
+        } else {
+          noNameTotal += tx.amount;
+          if (!nameTxs['']) nameTxs[''] = [];
+          nameTxs[''].push(tx);
+        }
+      });
+
+      var names = Object.keys(nameMap).sort(function (a, b) { return nameMap[b] - nameMap[a]; });
+
+      // 有名称的项目
+      names.forEach(function (name) {
+        var nAmount = nameMap[name];
+        var nPct = Math.round(nAmount / amount * 100);
+        var nDailyAvg = (daysInPeriod > 0) ? formatMoney(nAmount / daysInPeriod) : formatMoney(nAmount);
+        var itemExpanded = (expandedItem === name);
+
+        html += '<div class="item-block" style="margin-bottom:6px;background:var(--bg);border-radius:8px;padding:8px 10px;">' +
+          '<div class="item-header" data-item="' + name + '" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">' +
+            '<div>' +
+              '<div style="font-size:14px;font-weight:600;">📌 ' + escapeHtml(name) + '</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + nDailyAvg + ' · ' + (itemExpanded ? '▲ 收起' : '▼ 展开') + '</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:15px;font-weight:600;color:var(--expense);">¥' + formatMoney(nAmount) + '</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">' + nPct + '%</div>' +
+            '</div>' +
+          '</div>' +
+          '<div style="height:4px;background:var(--divider);border-radius:2px;margin-top:4px;overflow:hidden;">' +
+            '<div style="height:100%;width:' + nPct + '%;background:' + cat.color + ';border-radius:2px;"></div>' +
+          '</div>';
+
+        // 如果展开，显示具体交易
+        if (itemExpanded) {
+          var txs = nameTxs[name] || [];
+          txs.sort(function (a, b) { return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt); });
+          txs.forEach(function (tx) {
+            var icon = findCategoryByName(tx.category);
+            var txIcon = icon ? icon.icon : '💰';
+            var tDaily = daysSince(tx.date);
+            var tDailyAvg = (tDaily > 0) ? formatMoney(tx.amount / tDaily) : formatMoney(tx.amount);
+            html += '<div class="transaction-item" data-id="' + tx.id + '" style="margin-top:4px;padding:6px 0;border-bottom:1px dashed var(--divider);">' +
+              '<div class="tx-icon" style="font-size:16px;">' + txIcon + '</div>' +
+              '<div class="tx-info">' +
+                '<div style="font-size:13px;">' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
+                '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg + '（' + tDaily + '天）' +
+                  (tx.quantity ? ' · 剩' + (tx.remaining != null ? tx.remaining : tx.quantity) + '/' + tx.quantity : '') + '</div>' +
+              '</div>' +
+              '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
+            '</div>';
+          });
+        }
+
+        html += '</div>';
+      });
+
+      // 无名称的
+      if (noNameTotal > 0) {
+        var nPct = Math.round(noNameTotal / amount * 100);
+        var nDailyAvg = (daysInPeriod > 0) ? formatMoney(noNameTotal / daysInPeriod) : formatMoney(noNameTotal);
+        var itemExpanded = (expandedItem === '');
+
+        html += '<div class="item-block" style="margin-bottom:6px;background:var(--bg);border-radius:8px;padding:8px 10px;">' +
+          '<div class="item-header" data-item="" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">' +
+            '<div>' +
+              '<div style="font-size:14px;font-weight:600;">📌 其他</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + nDailyAvg + ' · ' + (itemExpanded ? '▲ 收起' : '▼ 展开') + '</div>' +
+            '</div>' +
+            '<div style="text-align:right;">' +
+              '<div style="font-size:15px;font-weight:600;color:var(--expense);">¥' + formatMoney(noNameTotal) + '</div>' +
+              '<div style="font-size:11px;color:var(--text-secondary);">' + nPct + '%</div>' +
+            '</div>' +
+          '</div>';
+
+        if (itemExpanded) {
+          var txs = nameTxs[''] || [];
+          txs.sort(function (a, b) { return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt); });
+          txs.forEach(function (tx) {
+            var icon = findCategoryByName(tx.category);
+            var txIcon = icon ? icon.icon : '💰';
+            var tDaily = daysSince(tx.date);
+            var tDailyAvg = (tDaily > 0) ? formatMoney(tx.amount / tDaily) : formatMoney(tx.amount);
+            html += '<div class="transaction-item" data-id="' + tx.id + '" style="margin-top:4px;padding:6px 0;border-bottom:1px dashed var(--divider);">' +
+              '<div class="tx-icon" style="font-size:16px;">' + txIcon + '</div>' +
+              '<div class="tx-info">' +
+                '<div style="font-size:13px;">' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
+                '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg + '（' + tDaily + '天）' +
+                  (tx.quantity ? ' · 剩' + (tx.remaining != null ? tx.remaining : tx.quantity) + '/' + tx.quantity : '') + '</div>' +
+              '</div>' +
+              '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
+            '</div>';
+          });
+        }
+
+        html += '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    html += '</div>';
   });
+
   container.innerHTML = html;
 
-  // 绑定点击
-  container.querySelectorAll('.cat-card').forEach(function (card) {
-    card.addEventListener('click', function () {
-      homeView = 'items';
-      homeViewCat = card.getAttribute('data-cat');
+  // 绑定分类头点击
+  container.querySelectorAll('.cat-header').forEach(function (header) {
+    header.addEventListener('click', function () {
+      var cat = header.getAttribute('data-cat');
+      if (expandedCat === cat) {
+        expandedCat = null;
+        expandedItem = null;
+      } else {
+        expandedCat = cat;
+        expandedItem = null;
+      }
       expandedTxId = null;
-      renderHomePage();
+      renderHomeContent();
     });
   });
 
-  // 分类占比小条
-  renderHomeCategoryBreakdown();
-}
-
-/* 二级视图：该分类下的名称列表 */
-function renderItemList(catName) {
-  document.getElementById('home-month-label').innerHTML = '<span style="cursor:pointer;color:var(--primary);">← 返回</span> ' + catName;
-  document.getElementById('home-month-label').onclick = goBackHomeView;
-  document.getElementById('category-breakdown').style.display = 'none';
-
-  var container = document.getElementById('home-transaction-list');
-  var allTx = getTransactions();
-  var range = getPeriodRange(homePeriod, new Date());
-
-  // 按名称分组
-  var nameMap = {};
-  var noNameTotal = 0;
-  var noNameList = [];
-  allTx.forEach(function (tx) {
-    if (tx.type !== 'expense') return;
-    if (tx.category !== catName) return;
-    if (tx.date < range.start || tx.date > range.end) return;
-    if (tx.itemName) {
-      nameMap[tx.itemName] = (nameMap[tx.itemName] || 0) + tx.amount;
-    } else {
-      noNameTotal += tx.amount;
-      noNameList.push(tx);
-    }
-  });
-
-  var html = '';
-  // 有名称的
-  var names = Object.keys(nameMap).sort(function (a, b) { return nameMap[b] - nameMap[a]; });
-  names.forEach(function (name) {
-    html += '<div class="card item-card" data-item="' + name + '" style="cursor:pointer;margin-bottom:8px;">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-        '<div><div style="font-size:15px;font-weight:600;">📌 ' + escapeHtml(name) + '</div>' +
-        '<div style="font-size:12px;color:var(--text-secondary);">点击查看详情 ▶</div></div>' +
-        '<div style="font-size:16px;font-weight:600;color:var(--expense);">¥' + formatMoney(nameMap[name]) + '</div>' +
-      '</div></div>';
-  });
-  // 无名称的合并显示
-  if (noNameTotal > 0) {
-    html += '<div class="card item-card" data-item="" style="cursor:pointer;margin-bottom:8px;">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;">' +
-        '<div><div style="font-size:15px;font-weight:600;">📌 其他</div>' +
-        '<div style="font-size:12px;color:var(--text-secondary);">点击查看详情 ▶</div></div>' +
-        '<div style="font-size:16px;font-weight:600;color:var(--expense);">¥' + formatMoney(noNameTotal) + '</div>' +
-      '</div></div>';
-  }
-
-  if (!html) {
-    html = '<div class="empty-state"><div class="empty-text">该分类暂无记录</div></div>';
-  }
-  container.innerHTML = html;
-
-  container.querySelectorAll('.item-card').forEach(function (card) {
-    card.addEventListener('click', function () {
-      homeView = 'transactions';
-      homeViewItem = card.getAttribute('data-item') || null;
+  // 绑定二级分类头点击
+  container.querySelectorAll('.item-header').forEach(function (header) {
+    header.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var item = header.getAttribute('data-item');
+      if (expandedItem === item) {
+        expandedItem = null;
+      } else {
+        expandedItem = item;
+      }
       expandedTxId = null;
-      renderHomePage();
+      renderHomeContent();
+    });
+  });
+
+  // 绑定交易记录点击（展开详情）
+  container.querySelectorAll('.transaction-item').forEach(function (item) {
+    item.addEventListener('click', function (e) {
+      if (e.target.closest('button')) return;
+      var txId = item.getAttribute('data-id');
+      toggleTxDetail(txId);
     });
   });
 }
 
-/* 三级视图：该名称下的所有交易记录 */
-function renderTransactionList(catName, itemName) {
-  var label = catName;
-  if (itemName) label += ' / ' + itemName;
-  document.getElementById('home-month-label').innerHTML = '<span style="cursor:pointer;color:var(--primary);">← 返回</span> ' + label;
-  document.getElementById('home-month-label').onclick = goBackHomeView;
-  document.getElementById('category-breakdown').style.display = 'none';
-
-  var container = document.getElementById('home-transaction-list');
-  var allTx = getTransactions();
-  var range = getPeriodRange(homePeriod, new Date());
-
-  var filtered = allTx.filter(function (tx) {
-    if (tx.type !== 'expense') return false;
-    if (tx.category !== catName) return false;
-    if (tx.date < range.start || tx.date > range.end) return false;
-    if (itemName) return tx.itemName === itemName;
-    return !tx.itemName;
-  });
-
-  if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-state"><div class="empty-text">暂无记录</div></div>';
-    return;
-  }
-
-  var html = '';
-  var currentDate = '';
-  filtered.forEach(function (tx) {
-    if (tx.date !== currentDate) {
-      currentDate = tx.date;
-      html += '<div class="date-group-title">' + formatDateLabel(tx.date) + '</div>';
-    }
-    html += buildTransactionItemHtml(tx);
-  });
-  container.innerHTML = html;
-
-  if (expandedTxId) showTxDetail(expandedTxId);
-  bindTransactionClicks(container);
-}
-
-/* 获取时间段标签 */
-function getPeriodLabel() {
-  var labels = { day: '今日', week: '本周', month: '本月', year: '本年' };
-  return labels[homePeriod] || '本月';
+/* 获取时间段天数 */
+function getPeriodDays(range) {
+  var d1 = new Date(range.start + 'T00:00:00');
+  var d2 = new Date(range.end + 'T00:00:00');
+  var days = Math.ceil((d2 - d1) / 86400000) + 1;
+  return Math.max(1, days);
 }
 
 /* 首页汇总卡片 */
@@ -274,14 +303,13 @@ function renderHomeSummary() {
   document.getElementById('budget-text').textContent = '';
 }
 
-/* 首页分类占比 */
+/* 首页分类占比 - 圆形扇形图 */
 function renderHomeCategoryBreakdown() {
   var container = document.getElementById('category-bars');
   var emptyEl = document.getElementById('category-empty');
   var allTx = getTransactions();
   var range = getPeriodRange(homePeriod, new Date());
 
-  // 筛选支出
   var expenseList = allTx.filter(function (tx) {
     return tx.type === 'expense' && tx.date >= range.start && tx.date <= range.end;
   });
@@ -293,7 +321,6 @@ function renderHomeCategoryBreakdown() {
   }
   emptyEl.style.display = 'none';
 
-  // 按分类汇总
   var catMap = {};
   var total = 0;
   expenseList.forEach(function (tx) {
@@ -302,21 +329,42 @@ function renderHomeCategoryBreakdown() {
   });
 
   var cats = getCategories();
-  var html = '';
-  cats.forEach(function (cat) {
+  // 构建 conic-gradient
+  var gradientParts = [];
+  var legendHtml = '';
+  var currentDeg = 0;
+  var activeCats = cats.filter(function (c) { return (catMap[c.name] || 0) > 0; });
+
+  activeCats.forEach(function (cat) {
     var amount = catMap[cat.name] || 0;
-    if (amount === 0) return;
-    var percent = Math.round((amount / total) * 100);
-    html += '<div class="category-bar-item">' +
-      '<div class="category-bar-color" style="background:' + cat.color + ';"></div>' +
-      '<div class="category-bar-info">' +
-        '<div class="category-bar-name"><span>' + cat.icon + ' ' + cat.name + '</span><span>¥' + formatMoney(amount) + '</span></div>' +
-        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + percent + '%;background:' + cat.color + ';"></div></div>' +
-      '</div>' +
-    '</div>';
+    var pct = Math.round((amount / total) * 100);
+    var deg = (amount / total) * 360;
+    var startDeg = Math.round(currentDeg);
+    currentDeg += deg;
+    var endDeg = Math.round(currentDeg);
+    gradientParts.push(cat.color + ' ' + startDeg + 'deg ' + endDeg + 'deg');
+
+    legendHtml += '<div style="display:flex;align-items:center;gap:6px;font-size:12px;">' +
+      '<div style="width:10px;height:10px;border-radius:50%;background:' + cat.color + ';flex-shrink:0;"></div>' +
+      '<span style="flex:1;">' + cat.icon + ' ' + cat.name + '</span>' +
+      '<span style="font-weight:600;">' + pct + '%</span>' +
+      '</div>';
   });
 
-  container.innerHTML = html;
+  // 处理剩余
+  if (currentDeg < 360) {
+    gradientParts.push('var(--bg) ' + Math.round(currentDeg) + 'deg 360deg');
+  }
+
+  var conicGradient = gradientParts.join(', ');
+  container.innerHTML =
+    '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;">' +
+      '<div style="width:130px;height:130px;border-radius:50%;background:conic-gradient(' + conicGradient + ');flex-shrink:0;"></div>' +
+      '<div style="display:flex;flex-direction:column;gap:4px;">' +
+        '<div style="font-size:13px;font-weight:600;margin-bottom:2px;">总支出 ¥' + formatMoney(total) + '</div>' +
+        legendHtml +
+      '</div>' +
+    '</div>';
 }
 
 /* 首页交易列表 */
@@ -543,9 +591,8 @@ function bindHomePeriodTabs() {
       tab.classList.add('active');
       homePeriod = tab.getAttribute('data-period');
       expandedTxId = null;
-      homeView = 'categories';
-      homeViewCat = null;
-      homeViewItem = null;
+      expandedCat = null;
+      expandedItem = null;
       renderHomeSummary();
       renderHomeCategoryBreakdown();
     });
