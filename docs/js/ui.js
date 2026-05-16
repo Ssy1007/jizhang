@@ -773,17 +773,15 @@ function renderQuantityRanking(periodTx) {
   }
   emptyEl.style.display = 'none';
 
-  var totalQtyAll = sorted.reduce(function (s, item) { return s + item.totalQty; }, 0);
   var maxQty = sorted[0].totalQty;
   var html = '';
   sorted.forEach(function (item, index) {
-    var percent = Math.round((item.totalQty / totalQtyAll) * 100);
     var barPercent = Math.round((item.totalQty / maxQty) * 100);
     html += '<div class="category-bar-item stat-item-clickable" data-cat="' + item.name + '">' +
       '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
       '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
       '<div class="category-bar-info">' +
-        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.totalQty + ' 件 <span style="font-size:11px;color:var(--text-secondary);">' + percent + '%</span></span></div>' +
+        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.totalQty + ' 件</span></div>' +
         '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + barPercent + '%;background:' + item.color + ';"></div></div>' +
       '</div>' +
     '</div>';
