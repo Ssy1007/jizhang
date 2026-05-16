@@ -35,6 +35,8 @@ function switchPage(pageName) {
   // 清除展开状态和编辑状态
   expandedTxId = null;
   currentEditId = null;
+  expandedCat = null;
+  expandedItem = null;
 
   // 渲染对应页面内容
   if (pageName === 'home') renderHomePage();

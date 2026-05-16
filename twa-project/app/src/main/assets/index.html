@@ -101,13 +101,57 @@
       </div>
     </div>
 
-    <!-- 分类排行 -->
-    <div class="card" style="margin-top:12px;">
+    <!-- 统计分类切换 tab -->
+    <div class="period-tabs" id="stats-type-tabs" style="margin-top:12px;">
+      <div class="period-tab active" data-stat-type="price">💰 价格</div>
+      <div class="period-tab" data-stat-type="quantity">📦 数量</div>
+    </div>
+
+    <!-- 价格排行 -->
+    <div class="card" style="margin-top:12px;" id="stats-price-card">
       <div style="font-size:14px;font-weight:600;margin-bottom:8px;">支出分类排行</div>
       <div id="stats-category-ranking"></div>
       <div id="stats-empty" class="empty-state" style="padding:20px;display:none;">
         <div class="empty-text">暂无数据</div>
       </div>
+    </div>
+
+    <!-- 数量排行 -->
+    <div class="card" style="margin-top:12px;display:none;" id="stats-quantity-card">
+      <div style="font-size:14px;font-weight:600;margin-bottom:8px;">物品剩余数量统计</div>
+      <div id="stats-quantity-ranking"></div>
+      <div id="stats-qty-empty" class="empty-state" style="padding:20px;display:none;">
+        <div class="empty-text">暂无有数量的物品</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 数据管理弹窗 ==================== -->
+  <div class="overlay" id="data-sheet-overlay">
+    <div class="sheet">
+      <div class="sheet-header">
+        <span class="sheet-title">数据管理</span>
+        <button class="sheet-close" id="data-sheet-close">✕</button>
+      </div>
+      <div style="text-align:center;padding:16px 0;">
+        <div style="font-size:40px;margin-bottom:8px;">🗄</div>
+        <div style="font-size:14px;color:var(--text-secondary);" id="data-count"></div>
+      </div>
+      <button class="btn btn-danger" id="btn-clear-data">清除全部数据</button>
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-secondary);">
+        将删除所有记录、分类、设置、关键词
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 统计详情弹窗 ==================== -->
+  <div class="overlay" id="stats-detail-overlay">
+    <div class="sheet">
+      <div class="sheet-header">
+        <span class="sheet-title" id="stats-detail-title">分类详情</span>
+        <button class="sheet-close" id="stats-detail-close">✕</button>
+      </div>
+      <div class="stats-detail-list" id="stats-detail-list"></div>
     </div>
   </div>
 
@@ -118,7 +162,7 @@
     <!-- 搜索框 -->
     <div class="search-box">
       <span class="search-icon">🔍</span>
-      <input type="text" class="search-input" id="search-input" placeholder="搜索备注或金额...">
+      <input type="text" class="search-input" id="search-input" placeholder="搜索名称、备注或金额...">
     </div>
 
     <!-- 分类筛选 -->
@@ -168,11 +212,20 @@
       </div>
     </div>
 
+    <!-- 关键词管理 -->
+    <div class="card settings-section">
+      <div class="settings-section-title">不买挑战</div>
+      <div class="settings-item" id="settings-keywords">
+        <span class="settings-item-label">关键词管理</span>
+        <span class="settings-item-value">▶</span>
+      </div>
+    </div>
+
     <!-- 数据管理 -->
     <div class="card settings-section">
       <div class="settings-section-title">数据</div>
-      <div class="settings-item" id="settings-clear">
-        <span class="settings-item-label" style="color:var(--expense);">清除全部数据</span>
+      <div class="settings-item" id="settings-data">
+        <span class="settings-item-label">数据管理</span>
         <span class="settings-item-value">▶</span>
       </div>
     </div>
@@ -189,19 +242,19 @@
   <!-- ==================== 底部导航栏 ==================== -->
   <nav class="bottom-nav">
     <div class="nav-item active" data-page="home">
-      <span class="nav-icon">🏠</span>
+      <span class="nav-icon">◎</span>
       <span>首页</span>
     </div>
     <div class="nav-item" data-page="stats">
-      <span class="nav-icon">📊</span>
+      <span class="nav-icon">⊞</span>
       <span>统计</span>
     </div>
     <div class="nav-item" data-page="search">
-      <span class="nav-icon">🔍</span>
+      <span class="nav-icon">◉</span>
       <span>搜索</span>
     </div>
     <div class="nav-item" data-page="settings">
-      <span class="nav-icon">⚙️</span>
+      <span class="nav-icon">⊛</span>
       <span>设置</span>
     </div>
   </nav>
@@ -228,12 +281,24 @@
         <span class="amount-prefix">¥</span>
         <input type="text" class="form-input amount-input" id="input-amount"
                inputmode="decimal" placeholder="0.00" maxlength="12" autofocus>
+        <span id="quantity-row" style="display:none;margin-left:12px;">
+          <span style="font-size:14px;color:var(--text-secondary);">×</span>
+          <input type="text" class="form-input" id="input-quantity"
+                 inputmode="numeric" placeholder="数量" maxlength="6"
+                 style="width:60px;display:inline;padding:6px;font-size:14px;text-align:center;">
+        </span>
       </div>
 
       <!-- 分类选择（仅支出时显示） -->
       <div class="form-group" id="category-select-group">
         <div class="form-label">分类</div>
         <div class="category-scroll" id="category-scroll"></div>
+      </div>
+
+      <!-- 名称（仅支出时显示，作为二级分类） -->
+      <div class="form-group" id="item-name-group" style="display:none;">
+        <div class="form-label">名称（选填，如"外卖""咖啡"）</div>
+        <input type="text" class="form-input" id="input-item-name" placeholder="给这笔支出起个名字" maxlength="20">
       </div>
 
       <!-- 日期 -->
@@ -298,6 +363,51 @@
         <input type="text" class="form-input" id="input-new-category"
                placeholder="新分类名称" maxlength="8" style="flex:1;">
         <button class="btn btn-primary" id="btn-add-category" style="width:auto;padding:12px 16px;">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 关键词管理弹窗 ==================== -->
+  <div class="overlay" id="keywords-sheet-overlay">
+    <div class="sheet">
+      <div class="sheet-header">
+        <span class="sheet-title">不买挑战 - 关键词</span>
+        <button class="sheet-close" id="keywords-sheet-close">✕</button>
+      </div>
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+        添加物品关键词，记账匹配到时将提醒你三思
+      </div>
+      <div id="keywords-list"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <input type="text" class="form-input" id="input-new-keyword"
+               placeholder="例如：奶茶" maxlength="20" style="flex:1;">
+        <button class="btn btn-primary" id="btn-add-keyword" style="width:auto;padding:12px 16px;">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 增强提醒弹窗（预算超支/关键词） ==================== -->
+  <div class="confirm-overlay" id="alert-overlay">
+    <div class="confirm-dialog" style="border-top:4px solid var(--expense);">
+      <div style="font-size:40px;margin-bottom:8px;" id="alert-icon">⚠</div>
+      <div class="confirm-title" id="alert-title">提醒</div>
+      <div class="confirm-text" id="alert-text"></div>
+      <div class="confirm-buttons" id="alert-buttons">
+        <button class="btn btn-outline" id="alert-cancel">取消</button>
+        <button class="btn btn-primary" id="alert-ok">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 关键词两段式确认（第二弹） ==================== -->
+  <div class="confirm-overlay" id="keyword2-overlay">
+    <div class="confirm-dialog" style="border-top:4px solid var(--expense);">
+      <div style="font-size:40px;margin-bottom:8px;">🤔</div>
+      <div class="confirm-title">再想想？</div>
+      <div class="confirm-text" style="font-size:15px;">问问你自己，这钱该花吗？家里连堆快递的地方都没有了！</div>
+      <div class="confirm-buttons">
+        <button class="btn btn-outline" id="keyword2-cancel">取消</button>
+        <button class="btn btn-danger" id="keyword2-ok">确定</button>
       </div>
     </div>
   </div>

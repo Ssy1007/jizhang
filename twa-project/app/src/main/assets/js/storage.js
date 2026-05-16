@@ -5,12 +5,12 @@
 
 // ---- 默认支出分类 ----
 var DEFAULT_CATEGORIES = [
-  { id: 'cat_0', name: '日常',   color: '#4CAF50', icon: '🛒', isDefault: true },
-  { id: 'cat_1', name: '社交',   color: '#2196F3', icon: '🎉', isDefault: true },
-  { id: 'cat_2', name: '交通',   color: '#FF9800', icon: '🚌', isDefault: true },
-  { id: 'cat_3', name: '餐饮',   color: '#F44336', icon: '🍔', isDefault: true },
-  { id: 'cat_4', name: '网购',   color: '#9C27B0', icon: '📦', isDefault: true },
-  { id: 'cat_5', name: '其他',   color: '#607D8B', icon: '💸', isDefault: true }
+  { id: 'cat_0', name: '日常',   color: '#7B9CC8', icon: '🛒', isDefault: true },
+  { id: 'cat_1', name: '社交',   color: '#C8869E', icon: '🎉', isDefault: true },
+  { id: 'cat_2', name: '交通',   color: '#D49850', icon: '🚌', isDefault: true },
+  { id: 'cat_3', name: '餐饮',   color: '#D07060', icon: '🍔', isDefault: true },
+  { id: 'cat_4', name: '网购',   color: '#62A098', icon: '📦', isDefault: true },
+  { id: 'cat_5', name: '其他',   color: '#8E969F', icon: '💸', isDefault: true }
 ];
 
 // ---- 通用工具 ----
@@ -113,6 +113,34 @@ function findCategoryByName(name) {
   return getCategories().find(function (c) { return c.name === name; });
 }
 
+// ---- 关键词管理 ----
+
+/* 获取所有关键词 */
+function getKeywords() {
+  return loadFromStorage('keywords', []);
+}
+
+/* 添加关键词 */
+function addKeyword(keyword) {
+  var list = getKeywords();
+  if (list.indexOf(keyword) === -1) {
+    list.push(keyword);
+    return saveToStorage('keywords', list);
+  }
+  return false;
+}
+
+/* 删除关键词 */
+function removeKeyword(keyword) {
+  var list = getKeywords();
+  var idx = list.indexOf(keyword);
+  if (idx !== -1) {
+    list.splice(idx, 1);
+    return saveToStorage('keywords', list);
+  }
+  return false;
+}
+
 // ---- 预算 ----
 
 /* 获取预算设置 */
@@ -141,8 +169,24 @@ function saveSettings(settings) {
 
 /* 首次运行时初始化默认数据 */
 function initStorage() {
-  if (!localStorage.getItem('jizhang_categories')) {
+  // 同步默认分类的颜色（保留用户自定义分类）
+  var cats = loadFromStorage('categories', null);
+  if (!cats) {
     saveToStorage('categories', DEFAULT_CATEGORIES);
+  } else {
+    // 更新默认分类的颜色和图标到最新
+    var updated = false;
+    DEFAULT_CATEGORIES.forEach(function (defCat) {
+      var existing = cats.find(function (c) { return c.id === defCat.id; });
+      if (existing && (existing.color !== defCat.color || existing.icon !== defCat.icon)) {
+        existing.color = defCat.color;
+        existing.icon = defCat.icon;
+        updated = true;
+      }
+    });
+    if (updated) {
+      saveToStorage('categories', cats);
+    }
   }
   if (!localStorage.getItem('jizhang_transactions')) {
     saveToStorage('transactions', []);
@@ -152,5 +196,8 @@ function initStorage() {
   }
   if (!localStorage.getItem('jizhang_settings')) {
     saveToStorage('settings', { theme: 'green', currency: 'CNY' });
+  }
+  if (!localStorage.getItem('jizhang_keywords')) {
+    saveToStorage('keywords', []);
   }
 }
