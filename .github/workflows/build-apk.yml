@@ -56,9 +56,18 @@ jobs:
           ./gradle-8.4/bin/gradle assembleRelease --no-daemon --stacktrace --info 2>&1 | tail -100
         timeout-minutes: 20
 
+      - name: Find and Upload APK
+        run: |
+          echo "=== Searching for APK files ==="
+          find . -name "*.apk" -type f 2>/dev/null || echo "No APK found"
+          echo "=== Listing build output dirs ==="
+          find twa-project -type d -name "build" 2>/dev/null | head -10 || echo "No build dirs"
+          ls -la twa-project/app/build/outputs/apk/ 2>/dev/null || echo "No standard apk dir"
+          ls -la twa-project/app/build/outputs/ 2>/dev/null || echo "No outputs dir"
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: jizhang-apk
-          path: twa-project/app/build/outputs/apk/release/*.apk
+          path: "**/*.apk"
           if-no-files-found: warn
