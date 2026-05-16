@@ -1,0 +1,937 @@
+/* ===================================
+   记账APP - 主样式文件
+   移动优先，简洁直观
+   =================================== */
+
+/* ---- CSS 变量（默认淡绿色主题） ---- */
+:root {
+  --primary: #4CAF50;
+  --primary-light: #E8F5E9;
+  --primary-dark: #388E3C;
+
+  --expense: #F44336;
+  --income: #4CAF50;
+
+  --bg: #F5F5F5;
+  --card: #FFFFFF;
+  --text: #212121;
+  --text-secondary: #757575;
+  --divider: #E0E0E0;
+
+  --nav-height: 60px;
+  --fab-size: 56px;
+  --radius: 12px;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* ---- 基础重置 ---- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  -webkit-overflow-scrolling: touch;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  max-width: 480px;
+  margin: 0 auto;
+  position: relative;
+  overflow-x: hidden;
+  padding-bottom: calc(var(--nav-height) + 16px + env(safe-area-inset-bottom, 0px));
+  -webkit-font-smoothing: antialiased;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* ---- 安装横幅 ---- */
+.install-banner {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  font-size: 13px;
+}
+
+.install-banner.show {
+  display: flex;
+}
+
+.install-banner .banner-text {
+  flex: 1;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.install-banner .banner-btn {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 16px;
+  border: none;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+.install-banner .banner-close {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- 页面容器 ---- */
+.page {
+  display: none;
+  padding: 16px;
+  padding-bottom: calc(var(--nav-height) + 80px);
+  animation: fadeIn 0.2s ease;
+}
+
+.page.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- 顶部标题栏 ---- */
+.header {
+  padding: 12px 0 16px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ---- 卡片 ---- */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+/* ---- 汇总卡片（首页顶部） ---- */
+.summary-card {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+
+.summary-card .summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-card .summary-item {
+  text-align: center;
+  flex: 1;
+}
+
+.summary-card .summary-label {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-bottom: 4px;
+}
+
+.summary-card .summary-amount {
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-card .summary-divider {
+  width: 1px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ---- 预算进度条 ---- */
+.budget-bar-wrap {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  height: 6px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  background: #FFFFFF;
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.budget-text {
+  font-size: 12px;
+  margin-top: 6px;
+  opacity: 0.9;
+}
+
+/* ---- 时间段切换标签 ---- */
+.period-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.period-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 0;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  background: var(--card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.period-tab.active {
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+/* ---- 底部导航栏 ---- */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  height: calc(var(--nav-height) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--card);
+  display: flex;
+  border-top: 1px solid var(--divider);
+  z-index: 100;
+}
+
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  transition: color 0.2s;
+  min-height: 44px;
+}
+
+.nav-item .nav-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.nav-item.active {
+  color: var(--primary);
+}
+
+/* ---- FAB 浮动按钮 ---- */
+.fab {
+  position: fixed;
+  bottom: calc(var(--nav-height) + 16px);
+  right: calc(50% - 240px + 16px);
+  width: var(--fab-size);
+  height: var(--fab-size);
+  border-radius: 50%;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-size: 28px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 90;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.fab:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.3);
+}
+
+/* FAB 位置适配窄屏 */
+@media (max-width: 480px) {
+  .fab {
+    right: 16px;
+  }
+}
+
+/* ---- 底部弹出层（记一笔） ---- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.overlay.show {
+  display: flex;
+}
+
+.sheet {
+  background: var(--card);
+  width: 100%;
+  max-width: 480px;
+  border-radius: 16px 16px 0 0;
+  padding: 20px 16px 28px;
+  animation: slideUp 0.25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+.sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.sheet-title {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sheet-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+}
+
+/* ---- 类型切换（支出/收入） ---- */
+.type-toggle {
+  display: flex;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+
+.type-btn {
+  flex: 1;
+  text-align: center;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.type-btn.active.expense-active {
+  background: var(--expense);
+  color: #FFFFFF;
+}
+
+.type-btn.active.income-active {
+  background: var(--income);
+  color: #FFFFFF;
+}
+
+/* ---- 表单字段 ---- */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--divider);
+  border-radius: 8px;
+  font-size: 16px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+}
+
+/* 金额输入 */
+.amount-input {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  border: none;
+  background: transparent;
+  padding: 8px;
+  letter-spacing: 1px;
+}
+
+.amount-input:focus {
+  border-bottom: 2px solid var(--primary);
+}
+
+.amount-prefix {
+  font-size: 24px;
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+/* ---- 分类选择（横向滚动） ---- */
+.category-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 0 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.category-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.category-chip {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 2px solid var(--divider);
+  background: var(--card);
+  cursor: pointer;
+  min-width: 56px;
+  min-height: 56px;
+  transition: all 0.15s;
+}
+
+.category-chip .chip-icon {
+  font-size: 22px;
+}
+
+.category-chip .chip-name {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.category-chip.selected {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.category-chip.selected .chip-name {
+  color: var(--primary-dark);
+}
+
+/* ---- 按钮 ---- */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  min-height: 44px;
+}
+
+.btn:active {
+  opacity: 0.8;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #FFFFFF;
+}
+
+.btn-danger {
+  background: var(--expense);
+  color: #FFFFFF;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--divider);
+  color: var(--text);
+}
+
+/* ---- 交易列表 ---- */
+.transaction-list {
+  list-style: none;
+}
+
+.transaction-item {
+  display: flex;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  min-height: 52px;
+}
+
+.transaction-item:last-child {
+  border-bottom: none;
+}
+
+.tx-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: var(--bg);
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.tx-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tx-category {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tx-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tx-amount {
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  margin-left: 8px;
+}
+
+.tx-amount.expense {
+  color: var(--expense);
+}
+
+.tx-amount.income {
+  color: var(--income);
+}
+
+/* ---- 日期分组标题 ---- */
+.date-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 10px 0 6px;
+}
+
+/* ---- 空状态 ---- */
+.empty-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+}
+
+.empty-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.empty-state .empty-text {
+  font-size: 15px;
+}
+
+/* ---- 搜索框 ---- */
+.search-box {
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  border-radius: 24px;
+  padding: 8px 16px;
+  gap: 8px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 16px;
+  font-family: inherit;
+  outline: none;
+  padding: 6px 0;
+}
+
+.search-icon {
+  font-size: 20px;
+  color: var(--text-secondary);
+}
+
+/* ---- 筛选标签 ---- */
+.filter-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filter-tag {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  background: var(--card);
+  border: 1px solid var(--divider);
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-tag.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  border-color: var(--primary);
+}
+
+/* ---- 设置页 ---- */
+.settings-section {
+  margin-bottom: 20px;
+}
+
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-left: 4px;
+}
+
+.settings-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 4px;
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-item-label {
+  font-size: 15px;
+}
+
+.settings-item-value {
+  font-size: 14px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- 主题色块 ---- */
+.theme-colors {
+  display: flex;
+  gap: 12px;
+}
+
+.theme-color-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: border-color 0.15s;
+}
+
+.theme-color-dot.selected {
+  border-color: var(--text);
+}
+
+/* ---- 分类管理 ---- */
+.category-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--divider);
+  min-height: 44px;
+}
+
+.category-list-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-list-icon {
+  font-size: 22px;
+}
+
+.category-list-name {
+  font-size: 15px;
+}
+
+.category-list-delete {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* ---- 确认弹窗 ---- */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 300;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirm-overlay.show {
+  display: flex;
+}
+
+.confirm-dialog {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 280px;
+  text-align: center;
+}
+
+.confirm-title {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.confirm-text {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.confirm-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.confirm-buttons .btn {
+  flex: 1;
+}
+
+/* ---- 详情展开 ---- */
+.tx-detail {
+  padding: 4px 0 8px 52px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  display: none;
+  border-bottom: 1px solid var(--divider);
+}
+
+.tx-detail.show {
+  display: block;
+}
+
+.tx-detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+}
+
+/* ---- 交易操作按钮（编辑/删除） ---- */
+.tx-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.tx-action-btn {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--divider);
+  background: var(--card);
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 36px;
+  transition: background 0.15s;
+}
+
+.tx-action-btn:active {
+  background: var(--bg);
+}
+
+.tx-action-btn.edit-btn {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.tx-action-btn.delete-btn {
+  color: var(--expense);
+  border-color: var(--expense);
+}
+
+/* 选中的交易项背景 */
+.transaction-item.expanded {
+  background: var(--primary-light);
+  border-radius: 8px;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+/* ---- 弹窗内删除按钮 ---- */
+.sheet-delete-btn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  color: var(--expense);
+  text-align: center;
+  min-height: 44px;
+}
+
+/* ---- 统计页 ---- */
+.stat-chart-area {
+  text-align: center;
+  padding: 24px 0;
+}
+
+.stat-total {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.stat-total-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.category-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.category-bar-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.category-bar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.category-bar-name {
+  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.category-bar-track {
+  height: 6px;
+  background: var(--bg);
+  border-radius: 3px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.category-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}

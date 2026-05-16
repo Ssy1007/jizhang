@@ -5,8 +5,6 @@ import android.os.Bundle;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.webkit.WebSettings;
-import android.webkit.SslErrorHandler;
-import android.net.http.SslError;
 import android.view.WindowManager;
 
 public class MainActivity extends Activity {
@@ -21,23 +19,17 @@ public class MainActivity extends Activity {
         );
 
         webView = new WebView(this);
-        webView.setWebViewClient(new WebViewClient() {
-            @Override
-            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
-                // 接受所有 SSL 证书（仅用于信任的 GitHub Pages）
-                handler.proceed();
-            }
-        });
+        webView.setWebViewClient(new WebViewClient());
         WebSettings settings = webView.getSettings();
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
-        settings.setAllowFileAccess(false);
+        settings.setAllowFileAccess(true);
         settings.setDatabaseEnabled(true);
+        settings.setAllowContentAccess(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
-        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-        settings.setUserAgentString(settings.getUserAgentString() + " JizhangApp/1.0");
 
-        webView.loadUrl("https://ssy1007.github.io/jizhang/");
+        // 加载打包在APK内的本地文件，不需要联网
+        webView.loadUrl("file:///android_asset/index.html");
         setContentView(webView);
     }
 

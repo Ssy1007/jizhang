@@ -1,0 +1,22 @@
+{
+  "name": "记账",
+  "short_name": "记账",
+  "description": "简单好用的个人记账工具",
+  "start_url": "/jizhang/",
+  "scope": "/jizhang/",
+  "id": "/jizhang/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F5F5",
+  "theme_color": "#4CAF50",
+  "lang": "zh-CN",
+  "categories": ["finance", "lifestyle"],
+  "icons": [
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
