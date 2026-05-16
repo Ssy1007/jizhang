@@ -1242,7 +1242,7 @@ function saveTransactionHandler() {
   // 关键词匹配检查（仅新增、仅支出）
   if (!currentEditId && currentTxType === 'expense') {
     var keywords = getKeywords();
-    var checkText = (selectedCategory ? selectedCategory.name : '') + ' ' + note;
+    var checkText = (selectedCategory ? selectedCategory.name : '') + ' ' + (itemName || '') + ' ' + note;
     var matched = null;
     for (var i = 0; i < keywords.length; i++) {
       if (checkText.indexOf(keywords[i]) !== -1) {
