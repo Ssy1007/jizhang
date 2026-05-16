@@ -12,11 +12,6 @@ android {
         targetSdk 34
         versionCode 1
         versionName "1.0.0"
-        manifestPlaceholders = [
-            hostName: "ssy1007.github.io",
-            defaultUrl: "https://ssy1007.github.io/jizhang/",
-            launcherName: "记账"
-        ]
     }
 
     signingConfigs {
@@ -42,5 +37,5 @@ android {
 }
 
 dependencies {
-    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+    // No external dependencies needed for WebView
 }
