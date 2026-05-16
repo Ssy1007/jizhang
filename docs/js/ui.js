@@ -10,8 +10,8 @@ var homePeriod = 'month';             // 首页时间维度
 var statsPeriod = 'month';            // 统计页时间维度
 var currentEditId = null;             // 正在编辑的记录ID（null=新增模式）
 var expandedTxId = null;              // 当前展开详情的记录ID
-var expandedCat = null;              // 当前展开的一级分类（null=无）
-var expandedItem = null;             // 当前展开的二级分类名称（null=无）
+var expandedCats = [];               // 已展开的一级分类列表
+var expandedItems = [];              // 已展开的二级分类标识 "cat::item"
 
 /* ===================================
    首页渲染
@@ -59,7 +59,7 @@ function renderHomeContent() {
     var pct = Math.round(amount / totalAll * 100);
     var dailyAvg = (daysInPeriod > 0) ? formatMoney(amount / daysInPeriod) : formatMoney(amount);
 
-    var isExpanded = (expandedCat === cat.name);
+    var isExpanded = (expandedCats.indexOf(cat.name) !== -1);
     html += '<div class="card cat-card" style="margin-bottom:8px;">' +
       '<div class="cat-header" data-cat="' + cat.name + '" style="cursor:pointer;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
@@ -106,7 +106,8 @@ function renderHomeContent() {
         var nAmount = nameMap[name];
         var nPct = Math.round(nAmount / amount * 100);
         var nDailyAvg = (daysInPeriod > 0) ? formatMoney(nAmount / daysInPeriod) : formatMoney(nAmount);
-        var itemExpanded = (expandedItem === name);
+        var itemKey = cat.name + '::' + name;
+        var itemExpanded = (expandedItems.indexOf(itemKey) !== -1);
 
         html += '<div class="item-block" style="margin-bottom:6px;background:var(--bg);border-radius:8px;padding:8px 10px;">' +
           '<div class="item-header" data-item="' + name + '" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">' +
@@ -151,7 +152,8 @@ function renderHomeContent() {
       if (noNameTotal > 0) {
         var nPct = Math.round(noNameTotal / amount * 100);
         var nDailyAvg = (daysInPeriod > 0) ? formatMoney(noNameTotal / daysInPeriod) : formatMoney(noNameTotal);
-        var itemExpanded = (expandedItem === '');
+        var otherKey = cat.name + '::';
+        var itemExpanded = (expandedItems.indexOf(otherKey) !== -1);
 
         html += '<div class="item-block" style="margin-bottom:6px;background:var(--bg);border-radius:8px;padding:8px 10px;">' +
           '<div class="item-header" data-item="" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">' +
@@ -200,12 +202,13 @@ function renderHomeContent() {
   container.querySelectorAll('.cat-header').forEach(function (header) {
     header.addEventListener('click', function () {
       var cat = header.getAttribute('data-cat');
-      if (expandedCat === cat) {
-        expandedCat = null;
-        expandedItem = null;
+      var idx = expandedCats.indexOf(cat);
+      if (idx !== -1) {
+        expandedCats.splice(idx, 1);
+        // 同时移除该分类下所有展开的二级
+        expandedItems = expandedItems.filter(function (key) { return key.indexOf(cat + '::') !== 0; });
       } else {
-        expandedCat = cat;
-        expandedItem = null;
+        expandedCats.push(cat);
       }
       expandedTxId = null;
       renderHomeContent();
@@ -217,10 +220,13 @@ function renderHomeContent() {
     header.addEventListener('click', function (e) {
       e.stopPropagation();
       var item = header.getAttribute('data-item');
-      if (expandedItem === item) {
-        expandedItem = null;
+      var parentCat = header.closest('.cat-card').querySelector('.cat-header').getAttribute('data-cat');
+      var key = parentCat + '::' + (item || '');
+      var idx = expandedItems.indexOf(key);
+      if (idx !== -1) {
+        expandedItems.splice(idx, 1);
       } else {
-        expandedItem = item;
+        expandedItems.push(key);
       }
       expandedTxId = null;
       renderHomeContent();
@@ -591,10 +597,9 @@ function bindHomePeriodTabs() {
       tab.classList.add('active');
       homePeriod = tab.getAttribute('data-period');
       expandedTxId = null;
-      expandedCat = null;
-      expandedItem = null;
-      renderHomeSummary();
-      renderHomeCategoryBreakdown();
+      expandedCats = [];
+      expandedItems = [];
+      renderHomePage();
     });
   });
 }
