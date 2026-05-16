@@ -4,26 +4,53 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-twa:
+  build:
     runs-on: ubuntu-latest
+    container:
+      image: circleci/android:api-30
     steps:
-      - name: Generate Bubblewrap project
-        uses: GoogleChromeLabs/bubblewrap-action/init@v2
-        with:
-          url: https://ssy1007.github.io/jizhang/
-          package: com.jizhang.app
-          app-name: 记账
-          short-name: 记账
-          output-directory: twa-project
+      - uses: actions/checkout@v4
+
+      - name: Install Node.js
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          apt-get install -y nodejs
+
+      - name: Install Bubblewrap
+        run: npm install -g @bubblewrap/cli
+
+      - name: Generate keystore
+        run: |
+          keytool -genkey -v \
+            -keystore android.keystore \
+            -alias jizhang \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=jizhang,O=jizhang,C=CN"
+
+      - name: Init TWA project
+        run: |
+          bubblewrap init \
+            --manifest "https://ssy1007.github.io/jizhang/manifest.json" \
+            --directory twa-project
+        timeout-minutes: 5
 
       - name: Build APK
         run: |
           cd twa-project
-          ./gradlew assembleRelease
+          bubblewrap build
+        timeout-minutes: 10
+
+      - name: Collect APK
+        run: |
+          find . -name "*.apk" 2>/dev/null || echo "no apk"
+          mkdir -p artifacts
+          find . -name "*.apk" -exec cp {} artifacts/ \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: jizhang-apk
-          path: twa-project/app/build/outputs/apk/release/*.apk
+          path: artifacts/
           if-no-files-found: ignore
