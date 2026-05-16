@@ -1,0 +1,38 @@
+{
+  "packageId": "com.jizhang.app",
+  "host": "ssy1007.github.io",
+  "name": "记账",
+  "launcherName": "记账",
+  "display": "standalone",
+  "themeColor": "#4CAF50",
+  "backgroundColor": "#F5F5F5",
+  "navigationColor": "#4CAF50",
+  "navigationColorDark": "#388E3C",
+  "navigationDividerColor": "#388E3C",
+  "navigationDividerColorDark": "#1B5E20",
+  "startUrl": "/jizhang/",
+  "iconUrl": "https://ssy1007.github.io/jizhang/icon-512.png",
+  "maskableIconUrl": "https://ssy1007.github.io/jizhang/icon-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./android.keystore",
+    "alias": "jizhang"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://ssy1007.github.io/jizhang/manifest.json",
+  "fallbackType": "customtabs",
+  "features": {
+    "locationDelegation": {
+      "enabled": false
+    },
+    "playBilling": {
+      "enabled": false
+    }
+  },
+  "alphaDependencies": {
+    "enabled": false
+  }
+}
