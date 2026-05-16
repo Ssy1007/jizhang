@@ -49,7 +49,10 @@ jobs:
             -dname "CN=jizhang,O=jizhang,C=CN"
 
       - name: Install Gradle
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq gradle
+        run: |
+          curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
+          unzip -q gradle.zip -d /opt
+          echo "/opt/gradle-8.4/bin" >> $GITHUB_PATH
 
       - name: Step 1 - Create local.properties
         working-directory: twa-project
