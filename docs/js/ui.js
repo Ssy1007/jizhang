@@ -976,14 +976,8 @@ function bindSettingsEvents() {
   // 关键词管理
   document.getElementById('settings-keywords').addEventListener('click', openKeywordsSheet);
 
-  // 清除数据
-  document.getElementById('settings-clear').addEventListener('click', function () {
-    showConfirm('清除全部数据', '所有记账记录、分类和设置将被删除，此操作不可恢复。', function () {
-      localStorage.clear();
-      initStorage();
-      switchPage('home');
-    });
-  });
+  // 数据管理
+  document.getElementById('settings-data').addEventListener('click', openDataSheet);
 }
 
 /* ===================================
@@ -1163,6 +1157,20 @@ function bindSheetEvents() {
     if (e.target === this) closeCategorySheet();
   });
   document.getElementById('btn-add-category').addEventListener('click', addCategoryHandler);
+
+  // 数据弹窗
+  document.getElementById('data-sheet-close').addEventListener('click', closeDataSheet);
+  document.getElementById('data-sheet-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeDataSheet();
+  });
+  document.getElementById('btn-clear-data').addEventListener('click', function () {
+    showConfirm('清除全部数据', '所有记账记录、分类、关键词和设置将被删除，此操作不可恢复。确定继续吗？', function () {
+      localStorage.clear();
+      initStorage();
+      closeDataSheet();
+      switchPage('home');
+    });
+  });
 
   // 关键词弹窗
   document.getElementById('keywords-sheet-close').addEventListener('click', closeKeywordsSheet);
@@ -1477,6 +1485,20 @@ function addCategoryHandler() {
   addCategory(name, color, '🏷️');
   document.getElementById('input-new-category').value = '';
   renderCategoryManageList();
+}
+
+/* ===================================
+   数据管理弹窗
+   =================================== */
+
+function openDataSheet() {
+  var allTx = getTransactions();
+  document.getElementById('data-count').textContent = '共 ' + allTx.length + ' 条记账记录';
+  document.getElementById('data-sheet-overlay').classList.add('show');
+}
+
+function closeDataSheet() {
+  document.getElementById('data-sheet-overlay').classList.remove('show');
 }
 
 /* ===================================

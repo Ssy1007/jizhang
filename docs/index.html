@@ -126,6 +126,24 @@
     </div>
   </div>
 
+  <!-- ==================== 数据管理弹窗 ==================== -->
+  <div class="overlay" id="data-sheet-overlay">
+    <div class="sheet">
+      <div class="sheet-header">
+        <span class="sheet-title">数据管理</span>
+        <button class="sheet-close" id="data-sheet-close">✕</button>
+      </div>
+      <div style="text-align:center;padding:16px 0;">
+        <div style="font-size:40px;margin-bottom:8px;">🗄</div>
+        <div style="font-size:14px;color:var(--text-secondary);" id="data-count"></div>
+      </div>
+      <button class="btn btn-danger" id="btn-clear-data">清除全部数据</button>
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--text-secondary);">
+        将删除所有记录、分类、设置、关键词
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== 统计详情弹窗 ==================== -->
   <div class="overlay" id="stats-detail-overlay">
     <div class="sheet">
@@ -206,8 +224,8 @@
     <!-- 数据管理 -->
     <div class="card settings-section">
       <div class="settings-section-title">数据</div>
-      <div class="settings-item" id="settings-clear">
-        <span class="settings-item-label" style="color:var(--expense);">清除全部数据</span>
+      <div class="settings-item" id="settings-data">
+        <span class="settings-item-label">数据管理</span>
         <span class="settings-item-value">▶</span>
       </div>
     </div>
