@@ -185,8 +185,8 @@ function buildTransactionItemHtml(tx) {
     (tx.note ? '<div class="tx-detail-row"><span>备注</span><span>' + escapeHtml(tx.note) + '</span></div>' : '');
 
   // 数量信息
-  if (tx.quantity) {
-    var remain = (tx.remaining !== undefined) ? tx.remaining : tx.quantity;
+  if (tx.quantity && tx.quantity > 0) {
+    var remain = (tx.remaining != null) ? tx.remaining : tx.quantity;
     var days = daysSince(tx.date);
     var dailyAvg;
     if (days <= 0) {
