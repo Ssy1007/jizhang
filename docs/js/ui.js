@@ -985,8 +985,10 @@ function doSaveTransaction(amount, date, note, quantity, remaining) {
     note: note,
     date: date || getTodayStr()
   };
-  if (quantity !== null) txData.quantity = quantity;
-  if (remaining !== null) txData.remaining = remaining;
+  if (quantity !== null && quantity > 0) {
+    txData.quantity = quantity;
+    txData.remaining = remaining;
+  }
 
   if (currentEditId) {
     updateTransaction(currentEditId, txData);
