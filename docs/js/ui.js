@@ -905,6 +905,7 @@ function performSearch() {
     if (!keyword) return true;
     return (tx.note && tx.note.toLowerCase().indexOf(keyword) !== -1) ||
            (tx.category && tx.category.toLowerCase().indexOf(keyword) !== -1) ||
+           (tx.itemName && tx.itemName.toLowerCase().indexOf(keyword) !== -1) ||
            String(tx.amount).indexOf(keyword) !== -1;
   });
 
