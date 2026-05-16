@@ -1496,20 +1496,57 @@ function closeKeywordsSheet() {
 function renderKeywordsList() {
   var container = document.getElementById('keywords-list');
   var keywords = getKeywords();
-  if (keywords.length === 0) {
-    container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:14px;">暂无关键词，添加一个试试</div>';
-    return;
-  }
-  var html = '<div class="keywords-tag-list">';
-  keywords.forEach(function (kw) {
-    html += '<div class="keyword-tag"><span>' + escapeHtml(kw) + '</span><span class="kw-delete" data-kw="' + escapeHtml(kw) + '">✕</span></div>';
+
+  // 收集所有用过的二级名称
+  var allTx = getTransactions();
+  var usedNames = {};
+  allTx.forEach(function (tx) {
+    if (tx.itemName && keywords.indexOf(tx.itemName) === -1) {
+      usedNames[tx.itemName] = true;
+    }
   });
-  html += '</div>';
+  var unusedNames = Object.keys(usedNames).sort();
+
+  var html = '';
+
+  // 已有关键词
+  if (keywords.length > 0) {
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;">已添加</div>';
+    html += '<div class="keywords-tag-list" style="margin-bottom:12px;">';
+    keywords.forEach(function (kw) {
+      html += '<div class="keyword-tag"><span>' + escapeHtml(kw) + '</span><span class="kw-delete" data-kw="' + escapeHtml(kw) + '">✕</span></div>';
+    });
+    html += '</div>';
+  }
+
+  // 可添加的物品名称
+  if (unusedNames.length > 0) {
+    html += '<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;font-weight:600;">常用物品 · 点击添加</div>';
+    html += '<div class="keywords-tag-list">';
+    unusedNames.forEach(function (name) {
+      html += '<div class="keyword-tag" style="cursor:pointer;background:var(--bg);" data-add="' + escapeHtml(name) + '">' + getItemIcon(name) + ' ' + escapeHtml(name) + '<span style="font-size:11px;color:var(--text-secondary);margin-left:2px;">+</span></div>';
+    });
+    html += '</div>';
+  }
+
+  if (!html) {
+    html = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:14px;">暂无数据。记几笔支出后，物品名称会出现在这里</div>';
+  }
+
   container.innerHTML = html;
 
+  // 删除关键词
   container.querySelectorAll('.kw-delete').forEach(function (btn) {
     btn.addEventListener('click', function () {
       removeKeyword(btn.getAttribute('data-kw'));
+      renderKeywordsList();
+    });
+  });
+
+  // 点击添加
+  container.querySelectorAll('[data-add]').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      addKeyword(chip.getAttribute('data-add'));
       renderKeywordsList();
     });
   });
