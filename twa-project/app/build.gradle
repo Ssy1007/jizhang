@@ -1,6 +1,4 @@
-plugins {
-    id 'com.android.application'
-}
+apply plugin: 'com.android.application'
 
 android {
     namespace 'com.jizhang.app'
@@ -16,7 +14,7 @@ android {
 
     signingConfigs {
         release {
-            storeFile rootProject.file('android.keystore')
+            storeFile file('../android.keystore')
             storePassword 'android'
             keyAlias 'jizhang'
             keyPassword 'android'
@@ -34,8 +32,4 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
-}
-
-dependencies {
-    // No external dependencies needed for WebView
 }
