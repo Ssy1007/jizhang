@@ -10,6 +10,9 @@ var homePeriod = 'month';             // 首页时间维度
 var statsPeriod = 'month';            // 统计页时间维度
 var currentEditId = null;             // 正在编辑的记录ID（null=新增模式）
 var expandedTxId = null;              // 当前展开详情的记录ID
+var homeView = 'categories';          // 首页视图：categories / items / transactions
+var homeViewCat = null;               // 当前查看的分类
+var homeViewItem = null;              // 当前查看的二级分类名称
 
 /* ===================================
    首页渲染
@@ -17,9 +20,200 @@ var expandedTxId = null;              // 当前展开详情的记录ID
 
 function renderHomePage() {
   renderHomeSummary();
-  renderHomeCategoryBreakdown();
-  renderHomeTransactionList();
   bindHomePeriodTabs();
+  if (homeView === 'categories') {
+    renderCategoryList();
+  } else if (homeView === 'items') {
+    renderItemList(homeViewCat);
+  } else if (homeView === 'transactions') {
+    renderTransactionList(homeViewCat, homeViewItem);
+  }
+}
+
+/* 返回上级视图 */
+function goBackHomeView() {
+  if (homeView === 'transactions') {
+    homeView = 'items';
+    homeViewItem = null;
+  } else if (homeView === 'items') {
+    homeView = 'categories';
+    homeViewCat = null;
+  }
+  expandedTxId = null;
+  renderHomePage();
+}
+
+/* 一级视图：分类列表 */
+function renderCategoryList() {
+  document.getElementById('home-month-label').textContent = getPeriodLabel();
+  document.getElementById('category-breakdown').style.display = 'block';
+  document.getElementById('home-transaction-list').style.display = 'block';
+
+  var container = document.getElementById('home-transaction-list');
+  var allTx = getTransactions();
+  var range = getPeriodRange(homePeriod, new Date());
+
+  // 筛选支出
+  var expenseList = allTx.filter(function (tx) {
+    return tx.type === 'expense' && tx.date >= range.start && tx.date <= range.end;
+  });
+
+  if (expenseList.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div class="empty-text">还没有记录，点击下方 + 开始记一笔吧</div></div>';
+    document.getElementById('category-breakdown').style.display = 'none';
+    return;
+  }
+
+  // 按一级分类汇总
+  var cats = getCategories();
+  var catMap = {};
+  expenseList.forEach(function (tx) {
+    catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
+  });
+
+  var totalAll = 0;
+  cats.forEach(function (cat) { totalAll += (catMap[cat.name] || 0); });
+
+  var html = '';
+  cats.forEach(function (cat) {
+    var amount = catMap[cat.name] || 0;
+    if (amount === 0) return;
+    var pct = Math.round(amount / totalAll * 100);
+    html += '<div class="card cat-card" data-cat="' + cat.name + '" style="cursor:pointer;margin-bottom:8px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-size:24px;">' + cat.icon + '</span>' +
+          '<div><div style="font-size:15px;font-weight:600;">' + cat.name + '</div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">点击查看明细 ▶</div></div>' +
+        '</div>' +
+        '<div style="text-align:right;"><div style="font-size:18px;font-weight:700;color:var(--expense);">¥' + formatMoney(amount) + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);">' + pct + '%</div></div>' +
+      '</div>' +
+      '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + pct + '%;background:' + cat.color + ';"></div></div>' +
+      '</div>';
+  });
+  container.innerHTML = html;
+
+  // 绑定点击
+  container.querySelectorAll('.cat-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      homeView = 'items';
+      homeViewCat = card.getAttribute('data-cat');
+      expandedTxId = null;
+      renderHomePage();
+    });
+  });
+
+  // 分类占比小条
+  renderHomeCategoryBreakdown();
+}
+
+/* 二级视图：该分类下的名称列表 */
+function renderItemList(catName) {
+  document.getElementById('home-month-label').innerHTML = '<span style="cursor:pointer;color:var(--primary);">← 返回</span> ' + catName;
+  document.getElementById('home-month-label').onclick = goBackHomeView;
+  document.getElementById('category-breakdown').style.display = 'none';
+
+  var container = document.getElementById('home-transaction-list');
+  var allTx = getTransactions();
+  var range = getPeriodRange(homePeriod, new Date());
+
+  // 按名称分组
+  var nameMap = {};
+  var noNameTotal = 0;
+  var noNameList = [];
+  allTx.forEach(function (tx) {
+    if (tx.type !== 'expense') return;
+    if (tx.category !== catName) return;
+    if (tx.date < range.start || tx.date > range.end) return;
+    if (tx.itemName) {
+      nameMap[tx.itemName] = (nameMap[tx.itemName] || 0) + tx.amount;
+    } else {
+      noNameTotal += tx.amount;
+      noNameList.push(tx);
+    }
+  });
+
+  var html = '';
+  // 有名称的
+  var names = Object.keys(nameMap).sort(function (a, b) { return nameMap[b] - nameMap[a]; });
+  names.forEach(function (name) {
+    html += '<div class="card item-card" data-item="' + name + '" style="cursor:pointer;margin-bottom:8px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+        '<div><div style="font-size:15px;font-weight:600;">📌 ' + escapeHtml(name) + '</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">点击查看详情 ▶</div></div>' +
+        '<div style="font-size:16px;font-weight:600;color:var(--expense);">¥' + formatMoney(nameMap[name]) + '</div>' +
+      '</div></div>';
+  });
+  // 无名称的合并显示
+  if (noNameTotal > 0) {
+    html += '<div class="card item-card" data-item="" style="cursor:pointer;margin-bottom:8px;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+        '<div><div style="font-size:15px;font-weight:600;">📌 其他</div>' +
+        '<div style="font-size:12px;color:var(--text-secondary);">点击查看详情 ▶</div></div>' +
+        '<div style="font-size:16px;font-weight:600;color:var(--expense);">¥' + formatMoney(noNameTotal) + '</div>' +
+      '</div></div>';
+  }
+
+  if (!html) {
+    html = '<div class="empty-state"><div class="empty-text">该分类暂无记录</div></div>';
+  }
+  container.innerHTML = html;
+
+  container.querySelectorAll('.item-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      homeView = 'transactions';
+      homeViewItem = card.getAttribute('data-item') || null;
+      expandedTxId = null;
+      renderHomePage();
+    });
+  });
+}
+
+/* 三级视图：该名称下的所有交易记录 */
+function renderTransactionList(catName, itemName) {
+  var label = catName;
+  if (itemName) label += ' / ' + itemName;
+  document.getElementById('home-month-label').innerHTML = '<span style="cursor:pointer;color:var(--primary);">← 返回</span> ' + label;
+  document.getElementById('home-month-label').onclick = goBackHomeView;
+  document.getElementById('category-breakdown').style.display = 'none';
+
+  var container = document.getElementById('home-transaction-list');
+  var allTx = getTransactions();
+  var range = getPeriodRange(homePeriod, new Date());
+
+  var filtered = allTx.filter(function (tx) {
+    if (tx.type !== 'expense') return false;
+    if (tx.category !== catName) return false;
+    if (tx.date < range.start || tx.date > range.end) return false;
+    if (itemName) return tx.itemName === itemName;
+    return !tx.itemName;
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-text">暂无记录</div></div>';
+    return;
+  }
+
+  var html = '';
+  var currentDate = '';
+  filtered.forEach(function (tx) {
+    if (tx.date !== currentDate) {
+      currentDate = tx.date;
+      html += '<div class="date-group-title">' + formatDateLabel(tx.date) + '</div>';
+    }
+    html += buildTransactionItemHtml(tx);
+  });
+  container.innerHTML = html;
+
+  if (expandedTxId) showTxDetail(expandedTxId);
+  bindTransactionClicks(container);
+}
+
+/* 获取时间段标签 */
+function getPeriodLabel() {
+  var labels = { day: '今日', week: '本周', month: '本月', year: '本年' };
+  return labels[homePeriod] || '本月';
 }
 
 /* 首页汇总卡片 */
@@ -349,6 +543,9 @@ function bindHomePeriodTabs() {
       tab.classList.add('active');
       homePeriod = tab.getAttribute('data-period');
       expandedTxId = null;
+      homeView = 'categories';
+      homeViewCat = null;
+      homeViewItem = null;
       renderHomeSummary();
       renderHomeCategoryBreakdown();
     });
@@ -743,6 +940,7 @@ function openAddSheet() {
   document.getElementById('input-amount').value = '';
   document.getElementById('input-note').value = '';
   document.getElementById('input-quantity').value = '';
+  document.getElementById('input-item-name').value = '';
 
   // 默认支出
   currentTxType = 'expense';
@@ -778,6 +976,7 @@ function openEditSheet(txId) {
   document.getElementById('input-date').value = tx.date;
   document.getElementById('input-note').value = tx.note;
   document.getElementById('input-quantity').value = tx.quantity || '';
+  document.getElementById('input-item-name').value = tx.itemName || '';
 
   currentTxType = tx.type;
   updateTypeToggleUI();
@@ -808,10 +1007,12 @@ function updateTypeToggleUI() {
   if (currentTxType === 'expense') {
     expenseBtn.classList.add('active', 'expense-active');
     document.getElementById('category-select-group').style.display = 'block';
+    document.getElementById('item-name-group').style.display = 'block';
     document.getElementById('quantity-row').style.display = 'inline';
   } else {
     incomeBtn.classList.add('active', 'income-active');
     document.getElementById('category-select-group').style.display = 'none';
+    document.getElementById('item-name-group').style.display = 'none';
     document.getElementById('quantity-row').style.display = 'none';
   }
 }
@@ -935,6 +1136,7 @@ function saveTransactionHandler() {
   var date = document.getElementById('input-date').value;
   var note = document.getElementById('input-note').value.trim();
   var quantityStr = document.getElementById('input-quantity').value.trim();
+  var itemName = document.getElementById('input-item-name').value.trim();
 
   // 验证金额
   var amount = parseFloat(amountStr);
@@ -972,16 +1174,16 @@ function saveTransactionHandler() {
       }
     }
     if (matched) {
-      showKeywordConfirm1(matched, amount, date, note, quantity, remaining);
+      showKeywordConfirm1(matched, amount, date, note, quantity, remaining, itemName);
       return;
     }
   }
 
-  doSaveTransaction(amount, date, note, quantity, remaining);
+  doSaveTransaction(amount, date, note, quantity, remaining, itemName);
 }
 
 /* 实际执行保存 */
-function doSaveTransaction(amount, date, note, quantity, remaining) {
+function doSaveTransaction(amount, date, note, quantity, remaining, itemName) {
   var txData = {
     type: currentTxType,
     amount: amount,
@@ -989,6 +1191,7 @@ function doSaveTransaction(amount, date, note, quantity, remaining) {
     note: note,
     date: date || getTodayStr()
   };
+  if (itemName) txData.itemName = itemName;
   if (quantity !== null && quantity > 0) {
     txData.quantity = quantity;
     txData.remaining = remaining;
@@ -1060,7 +1263,7 @@ function showBudgetAlert(budgetAmount, spentAmount) {
 /* 关键词确认第一弹 */
 var keywordConfirmData = null;
 
-function showKeywordConfirm1(keyword, amount, date, note, quantity, remaining) {
+function showKeywordConfirm1(keyword, amount, date, note, quantity, remaining, itemName) {
   var overlay = document.getElementById('alert-overlay');
   document.getElementById('alert-icon').textContent = '⚠';
   document.getElementById('alert-title').textContent = '不买挑战提醒';
@@ -1072,7 +1275,7 @@ function showKeywordConfirm1(keyword, amount, date, note, quantity, remaining) {
   document.getElementById('alert-ok').className = 'btn btn-primary';
   overlay.classList.add('show');
 
-  keywordConfirmData = { keyword: keyword, amount: amount, date: date, note: note, quantity: quantity, remaining: remaining };
+  keywordConfirmData = { keyword: keyword, amount: amount, date: date, note: note, quantity: quantity, remaining: remaining, itemName: itemName };
 
   document.getElementById('alert-cancel').onclick = function () {
     overlay.classList.remove('show');
@@ -1098,7 +1301,8 @@ function showKeywordConfirm2() {
   document.getElementById('keyword2-ok').onclick = function () {
     overlay.classList.remove('show');
     if (keywordConfirmData) {
-      doSaveTransaction(keywordConfirmData.amount, keywordConfirmData.date, keywordConfirmData.note, keywordConfirmData.quantity, keywordConfirmData.remaining);
+      var d = keywordConfirmData;
+      doSaveTransaction(d.amount, d.date, d.note, d.quantity, d.remaining, d.itemName);
       keywordConfirmData = null;
     }
   };
