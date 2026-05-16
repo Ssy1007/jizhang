@@ -1479,7 +1479,7 @@ function addCategoryHandler() {
     return;
   }
 
-  var colors = ['#C9A87C', '#8899B4', '#B4A0C8', '#C47E8A', '#9A8CB8', '#8E979F', '#9BB5A8'];
+  var colors = ['#D49850', '#7B9CC8', '#C8869E', '#D07060', '#62A098', '#8E969F', '#A0B878'];
   var color = colors[Math.floor(Math.random() * colors.length)];
 
   addCategory(name, color, '🏷️');
