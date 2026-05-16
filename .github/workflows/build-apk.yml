@@ -23,9 +23,14 @@ jobs:
           curl -sL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -qo tools.zip
           rm tools.zip
-          mkdir -p latest
-          mv bin lib NOTICE.txt source.properties latest/ 2>/dev/null || true
-          ls latest/bin/
+          # The zip extracts to a cmdline-tools/ subfolder
+          if [ -d cmdline-tools ]; then
+            mv cmdline-tools latest
+          else
+            mkdir -p latest
+            mv bin lib NOTICE.txt source.properties latest/ 2>/dev/null || true
+          fi
+          ls -la latest/bin/
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
 
       - name: Install SDK packages
