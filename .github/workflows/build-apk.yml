@@ -17,21 +17,21 @@ jobs:
 
       - name: Download Android SDK tools
         run: |
-          mkdir -p $HOME/android-sdk/cmdline-tools
-          cd $HOME/android-sdk/cmdline-tools
+          export ANDROID_HOME=$HOME/android-sdk
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
           curl -sL -o tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -qo tools.zip
           rm tools.zip
-          mv cmdline-tools latest 2>/dev/null || true
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          mkdir -p latest
+          mv bin lib NOTICE.txt source.properties latest/ 2>/dev/null || true
+          ls latest/bin/
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
 
       - name: Install SDK packages
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
-          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
-            "platforms;android-34" \
-            "build-tools;34.0.0" \
-            "platform-tools"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
 
       - name: Generate keystore
         run: |
@@ -46,12 +46,21 @@ jobs:
       - name: Install Gradle
         run: sudo apt-get update -qq && sudo apt-get install -y -qq gradle
 
-      - name: Build APK
+      - name: Step 1 - Create local.properties
         working-directory: twa-project
         run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
-          gradle wrapper --gradle-version 8.4 --no-daemon
-          ./gradlew assembleRelease --no-daemon --stacktrace
+          cat local.properties
+
+      - name: Step 2 - Generate Gradle wrapper
+        working-directory: twa-project
+        run: gradle wrapper --gradle-version 8.4 --no-daemon
+        timeout-minutes: 5
+
+      - name: Step 3 - Build APK
+        working-directory: twa-project
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
         timeout-minutes: 20
 
       - name: Upload APK
