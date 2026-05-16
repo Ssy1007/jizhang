@@ -181,14 +181,45 @@ function buildTransactionItemHtml(tx) {
   '<div class="tx-detail' + (isExpanded ? ' show' : '') + '" data-id="' + tx.id + '">' +
     '<div class="tx-detail-row"><span>日期</span><span>' + tx.date + '</span></div>' +
     '<div class="tx-detail-row"><span>类型</span><span>' + (tx.type === 'expense' ? '支出' : '收入') + '</span></div>' +
-    (tx.note ? '<div class="tx-detail-row"><span>备注</span><span>' + escapeHtml(tx.note) + '</span></div>' : '') +
-    '<div class="tx-actions">' +
+    '<div class="tx-detail-row"><span>价格</span><span>¥' + formatMoney(tx.amount) + '</span></div>' +
+    (tx.note ? '<div class="tx-detail-row"><span>备注</span><span>' + escapeHtml(tx.note) + '</span></div>' : '');
+
+  // 数量信息
+  if (tx.quantity) {
+    var remain = (tx.remaining !== undefined) ? tx.remaining : tx.quantity;
+    var days = daysSince(tx.date);
+    var dailyAvg;
+    if (days <= 0) {
+      dailyAvg = '¥' + formatMoney(tx.amount);
+    } else {
+      dailyAvg = '¥' + formatMoney(tx.amount / days) + '/天';
+    }
+
+    html += '<div class="tx-detail-row"><span>总数量</span><span>' + tx.quantity + '</span></div>' +
+      '<div class="tx-detail-row"><span>剩余数量</span><span style="font-weight:600;font-size:15px;">' + remain + '</span></div>' +
+      '<div class="tx-detail-row"><span>日均成本</span><span>' + dailyAvg + '（' + (days > 0 ? days : 0) + '天）</span></div>' +
+      '<div class="tx-detail-row"><span>使用</span><span class="qty-arrows">' +
+        '<button class="qty-arrow-btn qty-down" data-action="qty-down" data-id="' + tx.id + '">−</button>' +
+        '<span class="qty-remain">' + remain + '</span>' +
+        '<button class="qty-arrow-btn qty-up" data-action="qty-up" data-id="' + tx.id + '">+</button>' +
+      '</span></div>';
+  }
+
+  html += '<div class="tx-actions">' +
       '<button class="tx-action-btn edit-btn" data-action="edit" data-id="' + tx.id + '">✏ 编辑</button>' +
       '<button class="tx-action-btn delete-btn" data-action="delete" data-id="' + tx.id + '">🗑 删除</button>' +
     '</div>' +
   '</div>';
 
   return html;
+}
+
+/* 计算从某日期到今天的天数 */
+function daysSince(dateStr) {
+  var then = new Date(dateStr + 'T00:00:00');
+  var now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.floor((now - then) / 86400000);
 }
 
 /* 绑定交易记录点击事件 */
@@ -218,6 +249,24 @@ function bindTransactionClicks(container) {
       e.stopPropagation();
       var txId = btn.getAttribute('data-id');
       deleteTxHandler(txId);
+    });
+  });
+
+  // 数量减少按钮
+  container.querySelectorAll('[data-action="qty-down"]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var txId = btn.getAttribute('data-id');
+      changeQuantity(txId, -1);
+    });
+  });
+
+  // 数量增加按钮
+  container.querySelectorAll('[data-action="qty-up"]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var txId = btn.getAttribute('data-id');
+      changeQuantity(txId, 1);
     });
   });
 }
@@ -261,6 +310,33 @@ function deleteTxHandler(txId) {
     }
   });
 }
+
+/* 变更数量 */
+function changeQuantity(txId, delta) {
+  var allTx = getTransactions();
+  var tx = null;
+  for (var i = 0; i < allTx.length; i++) {
+    if (allTx[i].id === txId) { tx = allTx[i]; break; }
+  }
+  if (!tx || !tx.quantity) return;
+
+  var newRemain = (tx.remaining !== undefined ? tx.remaining : tx.quantity) + delta;
+  if (newRemain < 0) newRemain = 0;
+  if (newRemain > tx.quantity) newRemain = tx.quantity;
+
+  updateTransaction(txId, { remaining: newRemain });
+  renderHomePage();
+  if (document.getElementById('page-search').classList.contains('active')) {
+    performSearch();
+  }
+  if (document.getElementById('page-stats').classList.contains('active')) {
+    renderStatsPage();
+  }
+
+  if (navigator.vibrate) {
+    navigator.vibrate(10);
+  }
+}
 function bindHomePeriodTabs() {
   var tabs = document.querySelectorAll('#home-period-tabs .period-tab');
   tabs.forEach(function (tab) {
@@ -281,6 +357,7 @@ function bindHomePeriodTabs() {
 
 function renderStatsPage() {
   bindStatsPeriodTabs();
+  bindStatsTypeTabs();
   renderStatsData();
 }
 
@@ -296,6 +373,29 @@ function bindStatsPeriodTabs() {
   });
 }
 
+var statsCurrentType = 'price';
+
+function bindStatsTypeTabs() {
+  var tabs = document.querySelectorAll('#stats-type-tabs .period-tab');
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      tabs.forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      statsCurrentType = tab.getAttribute('data-stat-type');
+      var priceCard = document.getElementById('stats-price-card');
+      var qtyCard = document.getElementById('stats-quantity-card');
+      if (statsCurrentType === 'price') {
+        priceCard.style.display = 'block';
+        qtyCard.style.display = 'none';
+      } else {
+        priceCard.style.display = 'none';
+        qtyCard.style.display = 'block';
+      }
+      renderStatsData();
+    });
+  });
+}
+
 function renderStatsData() {
   var allTx = getTransactions();
   var range = getPeriodRange(statsPeriod, new Date());
@@ -306,29 +406,39 @@ function renderStatsData() {
 
   var totalExpense = 0;
   var totalIncome = 0;
-  var catMap = {};
 
   periodTx.forEach(function (tx) {
-    if (tx.type === 'expense') {
-      totalExpense += tx.amount;
-      catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
-    } else {
-      totalIncome += tx.amount;
-    }
+    if (tx.type === 'expense') totalExpense += tx.amount;
+    else totalIncome += tx.amount;
   });
 
   document.getElementById('stats-total-expense').textContent = '¥' + formatMoney(totalExpense);
   document.getElementById('stats-total-income').textContent = '¥' + formatMoney(totalIncome);
   document.getElementById('stats-balance').textContent = '¥' + formatMoney(totalIncome - totalExpense);
 
-  // 分类排行
+  // 价格归类
+  renderPriceRanking(periodTx);
+  // 数量归类
+  renderQuantityRanking(periodTx);
+}
+
+function renderPriceRanking(periodTx) {
+  var catMap = {};
+  var listMap = {};
+  periodTx.forEach(function (tx) {
+    if (tx.type === 'expense') {
+      catMap[tx.category] = (catMap[tx.category] || 0) + tx.amount;
+      if (!listMap[tx.category]) listMap[tx.category] = [];
+      listMap[tx.category].push(tx);
+    }
+  });
+
   var ranking = document.getElementById('stats-category-ranking');
   var emptyEl = document.getElementById('stats-empty');
   var cats = getCategories();
 
-  // 按金额排序
   var sorted = cats.map(function (cat) {
-    return { name: cat.name, icon: cat.icon, color: cat.color, amount: catMap[cat.name] || 0 };
+    return { name: cat.name, icon: cat.icon, color: cat.color, amount: catMap[cat.name] || 0, txs: listMap[cat.name] || [] };
   }).filter(function (item) { return item.amount > 0; })
     .sort(function (a, b) { return b.amount - a.amount; });
 
@@ -343,7 +453,7 @@ function renderStatsData() {
   var html = '';
   sorted.forEach(function (item, index) {
     var percent = Math.round((item.amount / maxAmount) * 100);
-    html += '<div class="category-bar-item">' +
+    html += '<div class="category-bar-item stat-item-clickable" data-cat="' + item.name + '">' +
       '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
       '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
       '<div class="category-bar-info">' +
@@ -353,6 +463,99 @@ function renderStatsData() {
     '</div>';
   });
   ranking.innerHTML = html;
+
+  // 绑定点击查看详情
+  ranking.querySelectorAll('.stat-item-clickable').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var catName = el.getAttribute('data-cat');
+      openStatsDetail(catName);
+    });
+  });
+}
+
+function renderQuantityRanking(periodTx) {
+  var qtyMap = {};
+  var listMap = {};
+  periodTx.forEach(function (tx) {
+    if (tx.type === 'expense' && tx.quantity) {
+      var remain = (tx.remaining !== undefined) ? tx.remaining : tx.quantity;
+      qtyMap[tx.category] = (qtyMap[tx.category] || 0) + remain;
+      if (!listMap[tx.category]) listMap[tx.category] = [];
+      listMap[tx.category].push(tx);
+    }
+  });
+
+  var ranking = document.getElementById('stats-quantity-ranking');
+  var emptyEl = document.getElementById('stats-qty-empty');
+  var cats = getCategories();
+
+  var sorted = cats.map(function (cat) {
+    return { name: cat.name, icon: cat.icon, color: cat.color, totalQty: qtyMap[cat.name] || 0, txs: listMap[cat.name] || [] };
+  }).filter(function (item) { return item.totalQty > 0; })
+    .sort(function (a, b) { return b.totalQty - a.totalQty; });
+
+  if (sorted.length === 0) {
+    ranking.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+
+  var maxQty = sorted[0].totalQty;
+  var html = '';
+  sorted.forEach(function (item, index) {
+    var percent = Math.round((item.totalQty / maxQty) * 100);
+    html += '<div class="category-bar-item stat-item-clickable" data-cat="' + item.name + '">' +
+      '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
+      '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
+      '<div class="category-bar-info">' +
+        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.totalQty + ' 件</span></div>' +
+        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + percent + '%;background:' + item.color + ';"></div></div>' +
+      '</div>' +
+    '</div>';
+  });
+  ranking.innerHTML = html;
+
+  ranking.querySelectorAll('.stat-item-clickable').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var catName = el.getAttribute('data-cat');
+      openStatsDetail(catName);
+    });
+  });
+}
+
+/* 打开统计详情 */
+function openStatsDetail(catName) {
+  var allTx = getTransactions();
+  var range = getPeriodRange(statsPeriod, new Date());
+  var txs = allTx.filter(function (tx) {
+    return tx.category === catName && tx.date >= range.start && tx.date <= range.end;
+  });
+
+  document.getElementById('stats-detail-title').textContent = catName + ' - 明细';
+  var list = document.getElementById('stats-detail-list');
+  if (txs.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-text">暂无记录</div></div>';
+  } else {
+    var html = '';
+    txs.forEach(function (tx) {
+      var remain = (tx.quantity) ? ((tx.remaining !== undefined) ? tx.remaining : tx.quantity) : null;
+      html += '<div class="transaction-item" style="cursor:default;">' +
+        '<div class="tx-icon">' + (findCategoryByName(tx.category) ? findCategoryByName(tx.category).icon : '💰') + '</div>' +
+        '<div class="tx-info">' +
+          '<div class="tx-category">' + (tx.note || tx.category) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">' + tx.date + '</div>' +
+        '</div>' +
+        '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
+      '</div>';
+      if (remain !== null) {
+        html += '<div style="font-size:13px;color:var(--text-secondary);padding:0 0 4px 52px;">剩余数量：' + remain + ' / 总数：' + tx.quantity + '</div>';
+      }
+    });
+    list.innerHTML = html;
+  }
+
+  document.getElementById('stats-detail-overlay').classList.add('show');
 }
 
 /* ===================================
@@ -500,6 +703,9 @@ function bindSettingsEvents() {
   // 分类管理
   document.getElementById('settings-category').addEventListener('click', openCategorySheet);
 
+  // 关键词管理
+  document.getElementById('settings-keywords').addEventListener('click', openKeywordsSheet);
+
   // 清除数据
   document.getElementById('settings-clear').addEventListener('click', function () {
     showConfirm('清除全部数据', '所有记账记录、分类和设置将被删除，此操作不可恢复。', function () {
@@ -532,6 +738,7 @@ function openAddSheet() {
   // 清空输入
   document.getElementById('input-amount').value = '';
   document.getElementById('input-note').value = '';
+  document.getElementById('input-quantity').value = '';
 
   // 默认支出
   currentTxType = 'expense';
@@ -547,7 +754,6 @@ function openAddSheet() {
 
 /* 打开编辑弹窗 */
 function openEditSheet(txId) {
-  // 查找记录
   var allTx = getTransactions();
   var tx = null;
   for (var i = 0; i < allTx.length; i++) {
@@ -559,23 +765,19 @@ function openEditSheet(txId) {
   var overlay = document.getElementById('add-sheet-overlay');
   overlay.classList.add('show');
 
-  // 更新弹窗标题
   document.querySelector('#add-sheet .sheet-title').textContent = '编辑记录';
 
-  // 显示删除按钮
   var deleteBtn = document.getElementById('sheet-delete-btn');
   if (deleteBtn) deleteBtn.style.display = 'block';
 
-  // 填充数据
   document.getElementById('input-amount').value = tx.amount;
   document.getElementById('input-date').value = tx.date;
   document.getElementById('input-note').value = tx.note;
+  document.getElementById('input-quantity').value = tx.quantity || '';
 
-  // 设置类型
   currentTxType = tx.type;
   updateTypeToggleUI();
 
-  // 设置分类
   if (tx.type === 'expense') {
     selectedCategory = findCategoryByName(tx.category);
     renderCategoryChips();
@@ -602,9 +804,11 @@ function updateTypeToggleUI() {
   if (currentTxType === 'expense') {
     expenseBtn.classList.add('active', 'expense-active');
     document.getElementById('category-select-group').style.display = 'block';
+    document.getElementById('quantity-row').style.display = 'inline';
   } else {
     incomeBtn.classList.add('active', 'income-active');
     document.getElementById('category-select-group').style.display = 'none';
+    document.getElementById('quantity-row').style.display = 'none';
   }
 }
 
@@ -686,10 +890,38 @@ function bindSheetEvents() {
   });
   document.getElementById('btn-add-category').addEventListener('click', addCategoryHandler);
 
+  // 关键词弹窗
+  document.getElementById('keywords-sheet-close').addEventListener('click', closeKeywordsSheet);
+  document.getElementById('keywords-sheet-overlay').addEventListener('click', function (e) {
+    if (e.target === this) closeKeywordsSheet();
+  });
+  document.getElementById('btn-add-keyword').addEventListener('click', addKeywordHandler);
+
   // 确认弹窗
   document.getElementById('confirm-cancel').addEventListener('click', closeConfirm);
   document.getElementById('confirm-overlay').addEventListener('click', function (e) {
     if (e.target === this) closeConfirm();
+  });
+
+  // 增强提醒弹窗
+  document.getElementById('alert-cancel').addEventListener('click', function () {
+    document.getElementById('alert-overlay').classList.remove('show');
+  });
+  document.getElementById('alert-overlay').addEventListener('click', function (e) {
+    if (e.target === this) { document.getElementById('alert-overlay').classList.remove('show'); }
+  });
+
+  // 关键词第二弹
+  document.getElementById('keyword2-overlay').addEventListener('click', function (e) {
+    if (e.target === this) { document.getElementById('keyword2-overlay').classList.remove('show'); keywordConfirmData = null; }
+  });
+
+  // 统计详情弹窗
+  document.getElementById('stats-detail-close').addEventListener('click', function () {
+    document.getElementById('stats-detail-overlay').classList.remove('show');
+  });
+  document.getElementById('stats-detail-overlay').addEventListener('click', function (e) {
+    if (e.target === this) { document.getElementById('stats-detail-overlay').classList.remove('show'); }
   });
 }
 
@@ -698,6 +930,7 @@ function saveTransactionHandler() {
   var amountStr = document.getElementById('input-amount').value.trim();
   var date = document.getElementById('input-date').value;
   var note = document.getElementById('input-note').value.trim();
+  var quantityStr = document.getElementById('input-quantity').value.trim();
 
   // 验证金额
   var amount = parseFloat(amountStr);
@@ -705,13 +938,46 @@ function saveTransactionHandler() {
     shakeElement(document.getElementById('input-amount'));
     return;
   }
-  amount = Math.round(amount * 100) / 100; // 保留两位小数
+  amount = Math.round(amount * 100) / 100;
 
   // 支出必须有分类
   if (currentTxType === 'expense' && !selectedCategory) {
     return;
   }
 
+  // 解析数量（可选，仅支出）
+  var quantity = null;
+  var remaining = null;
+  if (currentTxType === 'expense' && quantityStr) {
+    var q = parseInt(quantityStr, 10);
+    if (!isNaN(q) && q > 0) {
+      quantity = q;
+      remaining = q;
+    }
+  }
+
+  // 关键词匹配检查（仅新增、仅支出）
+  if (!currentEditId && currentTxType === 'expense') {
+    var keywords = getKeywords();
+    var checkText = (selectedCategory ? selectedCategory.name : '') + ' ' + note;
+    var matched = null;
+    for (var i = 0; i < keywords.length; i++) {
+      if (checkText.indexOf(keywords[i]) !== -1) {
+        matched = keywords[i];
+        break;
+      }
+    }
+    if (matched) {
+      showKeywordConfirm1(matched, amount, date, note, quantity, remaining);
+      return;
+    }
+  }
+
+  doSaveTransaction(amount, date, note, quantity, remaining);
+}
+
+/* 实际执行保存 */
+function doSaveTransaction(amount, date, note, quantity, remaining) {
   var txData = {
     type: currentTxType,
     amount: amount,
@@ -719,18 +985,17 @@ function saveTransactionHandler() {
     note: note,
     date: date || getTodayStr()
   };
+  if (quantity !== null) txData.quantity = quantity;
+  if (remaining !== null) txData.remaining = remaining;
 
   if (currentEditId) {
-    // 更新已有记录
     updateTransaction(currentEditId, txData);
     if (expandedTxId === currentEditId) expandedTxId = null;
   } else {
-    // 新增记录
     txData.id = generateId();
     txData.createdAt = new Date().toISOString();
     saveTransaction(txData);
 
-    // 检查预算（仅新增时检查，避免编辑后重复提醒）
     if (currentTxType === 'expense') {
       checkBudgetAlert();
     }
@@ -739,12 +1004,10 @@ function saveTransactionHandler() {
   closeAddSheet();
   renderHomePage();
 
-  // 如果当前在搜索页面，刷新搜索结果
   if (document.getElementById('page-search').classList.contains('active')) {
     performSearch();
   }
 
-  // 轻微振动反馈
   if (navigator.vibrate) {
     navigator.vibrate(15);
   }
@@ -767,9 +1030,72 @@ function checkBudgetAlert() {
 
   if (monthExpense > budget.amount) {
     setTimeout(function () {
-      alert('⚠ 本月支出已超出预算！\n预算：¥' + formatMoney(budget.amount) + '\n已支出：¥' + formatMoney(monthExpense));
+      showBudgetAlert(budget.amount, monthExpense);
     }, 500);
   }
+}
+
+/* 增强预算超支提醒 */
+function showBudgetAlert(budgetAmount, spentAmount) {
+  var overlay = document.getElementById('alert-overlay');
+  document.getElementById('alert-icon').textContent = '🚨';
+  document.getElementById('alert-title').textContent = '预算超支！';
+  document.getElementById('alert-text').textContent = '本月支出 ¥' + formatMoney(spentAmount) + ' 已超出预算 ¥' + formatMoney(budgetAmount) + '\n请注意控制消费！';
+  document.getElementById('alert-cancel').style.display = 'none';
+  document.getElementById('alert-ok').textContent = '我知道了';
+  document.getElementById('alert-ok').className = 'btn btn-danger';
+  overlay.classList.add('show');
+
+  document.getElementById('alert-ok').onclick = function () {
+    overlay.classList.remove('show');
+  };
+}
+
+/* 关键词确认第一弹 */
+var keywordConfirmData = null;
+
+function showKeywordConfirm1(keyword, amount, date, note, quantity, remaining) {
+  var overlay = document.getElementById('alert-overlay');
+  document.getElementById('alert-icon').textContent = '⚠';
+  document.getElementById('alert-title').textContent = '不买挑战提醒';
+  document.getElementById('alert-text').textContent = '监测到【' + keyword + '】，该物品可能在不买挑战范围内，确定已经购买吗？';
+  document.getElementById('alert-cancel').style.display = 'inline-block';
+  document.getElementById('alert-cancel').textContent = '取消';
+  document.getElementById('alert-cancel').className = 'btn btn-outline';
+  document.getElementById('alert-ok').textContent = '确定';
+  document.getElementById('alert-ok').className = 'btn btn-primary';
+  overlay.classList.add('show');
+
+  keywordConfirmData = { keyword: keyword, amount: amount, date: date, note: note, quantity: quantity, remaining: remaining };
+
+  document.getElementById('alert-cancel').onclick = function () {
+    overlay.classList.remove('show');
+    keywordConfirmData = null;
+    closeAddSheet();
+  };
+  document.getElementById('alert-ok').onclick = function () {
+    overlay.classList.remove('show');
+    showKeywordConfirm2();
+  };
+}
+
+/* 关键词确认第二弹 */
+function showKeywordConfirm2() {
+  var overlay = document.getElementById('keyword2-overlay');
+  overlay.classList.add('show');
+
+  document.getElementById('keyword2-cancel').onclick = function () {
+    overlay.classList.remove('show');
+    keywordConfirmData = null;
+    closeAddSheet();
+  };
+  document.getElementById('keyword2-ok').onclick = function () {
+    overlay.classList.remove('show');
+    if (keywordConfirmData) {
+      doSaveTransaction(keywordConfirmData.amount, keywordConfirmData.date, keywordConfirmData.note, keywordConfirmData.quantity, keywordConfirmData.remaining);
+      keywordConfirmData = null;
+    }
+  };
 }
 
 /* ===================================
@@ -859,7 +1185,6 @@ function addCategoryHandler() {
   var name = document.getElementById('input-new-category').value.trim();
   if (!name) { return; }
 
-  // 检查重复
   var cats = getCategories();
   var exists = cats.some(function (c) { return c.name === name; });
   if (exists) {
@@ -867,13 +1192,59 @@ function addCategoryHandler() {
     return;
   }
 
-  // 随机分配一个颜色
   var colors = ['#FF9800', '#2196F3', '#E91E63', '#9C27B0', '#00BCD4', '#795548', '#8BC34A'];
   var color = colors[Math.floor(Math.random() * colors.length)];
 
   addCategory(name, color, '🏷️');
   document.getElementById('input-new-category').value = '';
   renderCategoryManageList();
+}
+
+/* ===================================
+   关键词管理弹窗
+   =================================== */
+
+function openKeywordsSheet() {
+  document.getElementById('keywords-sheet-overlay').classList.add('show');
+  document.getElementById('input-new-keyword').value = '';
+  renderKeywordsList();
+}
+
+function closeKeywordsSheet() {
+  document.getElementById('keywords-sheet-overlay').classList.remove('show');
+}
+
+function renderKeywordsList() {
+  var container = document.getElementById('keywords-list');
+  var keywords = getKeywords();
+  if (keywords.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:16px;color:var(--text-secondary);font-size:14px;">暂无关键词，添加一个试试</div>';
+    return;
+  }
+  var html = '<div class="keywords-tag-list">';
+  keywords.forEach(function (kw) {
+    html += '<div class="keyword-tag"><span>' + escapeHtml(kw) + '</span><span class="kw-delete" data-kw="' + escapeHtml(kw) + '">✕</span></div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+
+  container.querySelectorAll('.kw-delete').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      removeKeyword(btn.getAttribute('data-kw'));
+      renderKeywordsList();
+    });
+  });
+}
+
+function addKeywordHandler() {
+  var kw = document.getElementById('input-new-keyword').value.trim();
+  if (!kw) return;
+  if (!addKeyword(kw)) {
+    shakeElement(document.getElementById('input-new-keyword'));
+    return;
+  }
+  document.getElementById('input-new-keyword').value = '';
+  renderKeywordsList();
 }
 
 /* ===================================
@@ -896,12 +1267,16 @@ function closeConfirm() {
 
 /* 确认按钮 */
 document.addEventListener('DOMContentLoaded', function () {
-  document.getElementById('confirm-ok').addEventListener('click', function () {
-    closeConfirm();
-    if (confirmCallback) {
-      confirmCallback();
-    }
-  });
+  var confirmOk = document.getElementById('confirm-ok');
+  if (confirmOk) {
+    confirmOk.addEventListener('click', function () {
+      var cb = confirmCallback;
+      closeConfirm();
+      if (cb) {
+        cb();
+      }
+    });
+  }
 });
 
 /* ===================================

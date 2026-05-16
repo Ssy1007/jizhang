@@ -935,3 +935,135 @@ body {
   border-radius: 3px;
   transition: width 0.5s ease;
 }
+
+/* ---- 数量输入行内样式 ---- */
+.quantity-mini-input {
+  width: 56px !important;
+  padding: 6px !important;
+  font-size: 14px !important;
+  text-align: center;
+  display: inline-block;
+}
+
+/* ---- 数量加减箭头 ---- */
+.qty-arrows {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.qty-arrow-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--divider);
+  background: var(--card);
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  user-select: none;
+}
+
+.qty-arrow-btn:active {
+  background: var(--primary-light);
+}
+
+.qty-arrow-btn.qty-down {
+  color: var(--expense);
+}
+
+.qty-arrow-btn.qty-up {
+  color: var(--income);
+}
+
+.qty-remain {
+  font-size: 16px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* ---- 交易详情增强信息 ---- */
+.tx-detail-info {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.tx-detail-info span {
+  white-space: nowrap;
+}
+
+/* ---- 关键词管理 ---- */
+.keywords-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background: var(--primary-light);
+  font-size: 14px;
+}
+
+.keyword-tag .kw-delete {
+  cursor: pointer;
+  font-size: 16px;
+  color: var(--expense);
+}
+
+/* ---- 增强提醒弹窗 ---- */
+.alert-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 350;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.alert-overlay.show {
+  display: flex;
+}
+
+.alert-dialog {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 24px;
+  width: 300px;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ---- 统计页可点击条目 ---- */
+.stat-item-clickable {
+  cursor: pointer;
+  transition: background 0.15s;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+}
+
+.stat-item-clickable:active {
+  background: var(--bg);
+}
+
+/* ---- stats detail sheet ---- */
+.stats-detail-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}

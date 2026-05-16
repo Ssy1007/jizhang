@@ -113,6 +113,34 @@ function findCategoryByName(name) {
   return getCategories().find(function (c) { return c.name === name; });
 }
 
+// ---- 关键词管理 ----
+
+/* 获取所有关键词 */
+function getKeywords() {
+  return loadFromStorage('keywords', []);
+}
+
+/* 添加关键词 */
+function addKeyword(keyword) {
+  var list = getKeywords();
+  if (list.indexOf(keyword) === -1) {
+    list.push(keyword);
+    return saveToStorage('keywords', list);
+  }
+  return false;
+}
+
+/* 删除关键词 */
+function removeKeyword(keyword) {
+  var list = getKeywords();
+  var idx = list.indexOf(keyword);
+  if (idx !== -1) {
+    list.splice(idx, 1);
+    return saveToStorage('keywords', list);
+  }
+  return false;
+}
+
 // ---- 预算 ----
 
 /* 获取预算设置 */
@@ -152,5 +180,8 @@ function initStorage() {
   }
   if (!localStorage.getItem('jizhang_settings')) {
     saveToStorage('settings', { theme: 'green', currency: 'CNY' });
+  }
+  if (!localStorage.getItem('jizhang_keywords')) {
+    saveToStorage('keywords', []);
   }
 }
