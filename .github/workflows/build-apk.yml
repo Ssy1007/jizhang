@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Node.js
+      - name: Install Node
         run: |
           curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
           apt-get install -y nodejs
@@ -29,28 +29,23 @@ jobs:
             -keypass android \
             -dname "CN=jizhang,O=jizhang,C=CN"
 
-      - name: Init TWA project
+      - name: Init TWA (pipe yes to bypass prompts)
         run: |
-          bubblewrap init \
+          yes "" | bubblewrap init \
             --manifest "https://ssy1007.github.io/jizhang/manifest.json" \
             --directory twa-project
         timeout-minutes: 5
 
       - name: Build APK
-        run: |
-          cd twa-project
-          bubblewrap build
+        working-directory: twa-project
+        run: bubblewrap build
         timeout-minutes: 10
-
-      - name: Collect APK
-        run: |
-          find . -name "*.apk" 2>/dev/null || echo "no apk"
-          mkdir -p artifacts
-          find . -name "*.apk" -exec cp {} artifacts/ \;
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: jizhang-apk
-          path: artifacts/
+          path: |
+            twa-project/*.apk
+            twa-project/**/*.apk
           if-no-files-found: ignore
