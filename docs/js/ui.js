@@ -285,16 +285,20 @@ function toggleTxDetail(txId) {
 
 /* 展开详情 */
 function showTxDetail(txId) {
-  var item = document.querySelector('.transaction-item[data-id="' + txId + '"]');
-  var detail = document.querySelector('.tx-detail[data-id="' + txId + '"]');
+  var activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+  var item = activePage.querySelector('.transaction-item[data-id="' + txId + '"]');
+  var detail = activePage.querySelector('.tx-detail[data-id="' + txId + '"]');
   if (item) item.classList.add('expanded');
   if (detail) detail.classList.add('show');
 }
 
 /* 收起详情 */
 function hideTxDetail(txId) {
-  var item = document.querySelector('.transaction-item[data-id="' + txId + '"]');
-  var detail = document.querySelector('.tx-detail[data-id="' + txId + '"]');
+  var activePage = document.querySelector('.page.active');
+  if (!activePage) return;
+  var item = activePage.querySelector('.transaction-item[data-id="' + txId + '"]');
+  var detail = activePage.querySelector('.tx-detail[data-id="' + txId + '"]');
   if (item) item.classList.remove('expanded');
   if (detail) detail.classList.remove('show');
 }
