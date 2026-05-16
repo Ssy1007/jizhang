@@ -169,8 +169,24 @@ function saveSettings(settings) {
 
 /* 首次运行时初始化默认数据 */
 function initStorage() {
-  if (!localStorage.getItem('jizhang_categories')) {
+  // 同步默认分类的颜色（保留用户自定义分类）
+  var cats = loadFromStorage('categories', null);
+  if (!cats) {
     saveToStorage('categories', DEFAULT_CATEGORIES);
+  } else {
+    // 更新默认分类的颜色和图标到最新
+    var updated = false;
+    DEFAULT_CATEGORIES.forEach(function (defCat) {
+      var existing = cats.find(function (c) { return c.id === defCat.id; });
+      if (existing && (existing.color !== defCat.color || existing.icon !== defCat.icon)) {
+        existing.color = defCat.color;
+        existing.icon = defCat.icon;
+        updated = true;
+      }
+    });
+    if (updated) {
+      saveToStorage('categories', cats);
+    }
   }
   if (!localStorage.getItem('jizhang_transactions')) {
     saveToStorage('transactions', []);
