@@ -719,16 +719,18 @@ function renderPriceRanking(periodTx) {
   }
   emptyEl.style.display = 'none';
 
+  var totalAmount = sorted.reduce(function (s, item) { return s + item.amount; }, 0);
   var maxAmount = sorted[0].amount;
   var html = '';
   sorted.forEach(function (item, index) {
-    var percent = Math.round((item.amount / maxAmount) * 100);
+    var percent = Math.round((item.amount / totalAmount) * 100);
+    var barPercent = Math.round((item.amount / maxAmount) * 100);
     html += '<div class="category-bar-item stat-item-clickable" data-cat="' + item.name + '">' +
       '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
       '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
       '<div class="category-bar-info">' +
-        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>¥' + formatMoney(item.amount) + '</span></div>' +
-        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + percent + '%;background:' + item.color + ';"></div></div>' +
+        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>¥' + formatMoney(item.amount) + ' <span style="font-size:11px;color:var(--text-secondary);">' + percent + '%</span></span></div>' +
+        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + barPercent + '%;background:' + item.color + ';"></div></div>' +
       '</div>' +
     '</div>';
   });
@@ -771,16 +773,18 @@ function renderQuantityRanking(periodTx) {
   }
   emptyEl.style.display = 'none';
 
+  var totalQtyAll = sorted.reduce(function (s, item) { return s + item.totalQty; }, 0);
   var maxQty = sorted[0].totalQty;
   var html = '';
   sorted.forEach(function (item, index) {
-    var percent = Math.round((item.totalQty / maxQty) * 100);
+    var percent = Math.round((item.totalQty / totalQtyAll) * 100);
+    var barPercent = Math.round((item.totalQty / maxQty) * 100);
     html += '<div class="category-bar-item stat-item-clickable" data-cat="' + item.name + '">' +
       '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
       '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
       '<div class="category-bar-info">' +
-        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.totalQty + ' 件</span></div>' +
-        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + percent + '%;background:' + item.color + ';"></div></div>' +
+        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.totalQty + ' 件 <span style="font-size:11px;color:var(--text-secondary);">' + percent + '%</span></span></div>' +
+        '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + barPercent + '%;background:' + item.color + ';"></div></div>' +
       '</div>' +
     '</div>';
   });
@@ -845,6 +849,20 @@ function renderSearchFilterTags() {
   cats.forEach(function (cat) {
     html += '<div class="filter-tag" data-category="' + cat.name + '">' + cat.icon + ' ' + cat.name + '</div>';
   });
+
+  // 添加常用的二级名称作为筛选
+  var allTx = getTransactions();
+  var nameCount = {};
+  allTx.forEach(function (tx) {
+    if (tx.itemName) {
+      nameCount[tx.itemName] = (nameCount[tx.itemName] || 0) + 1;
+    }
+  });
+  var topNames = Object.keys(nameCount).sort(function (a, b) { return nameCount[b] - nameCount[a]; }).slice(0, 8);
+  topNames.forEach(function (name) {
+    html += '<div class="filter-tag" data-item="' + name + '">' + getItemIcon(name) + ' ' + name + '</div>';
+  });
+
   container.innerHTML = html;
 
   // 绑定筛选点击
@@ -870,6 +888,7 @@ function performSearch() {
   var keyword = document.getElementById('search-input').value.trim().toLowerCase();
   var activeTag = document.querySelector('#search-filter-tags .filter-tag.active');
   var categoryFilter = activeTag ? activeTag.getAttribute('data-category') : 'all';
+  var itemFilter = activeTag ? activeTag.getAttribute('data-item') : null;
 
   var results = document.getElementById('search-results');
   var emptyEl = document.getElementById('search-empty');
@@ -879,7 +898,9 @@ function performSearch() {
   // 筛选
   var filtered = allTx.filter(function (tx) {
     // 分类筛选
-    if (categoryFilter !== 'all' && tx.category !== categoryFilter) return false;
+    if (categoryFilter && categoryFilter !== 'all' && tx.category !== categoryFilter) return false;
+    // 二级名称筛选
+    if (itemFilter && tx.itemName !== itemFilter) return false;
     // 关键字筛选
     if (!keyword) return true;
     return (tx.note && tx.note.toLowerCase().indexOf(keyword) !== -1) ||
