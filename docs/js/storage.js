@@ -5,12 +5,12 @@
 
 // ---- 默认支出分类 ----
 var DEFAULT_CATEGORIES = [
-  { id: 'cat_0', name: '日常',   color: '#4CAF50', icon: '🛒', isDefault: true },
-  { id: 'cat_1', name: '社交',   color: '#2196F3', icon: '🎉', isDefault: true },
-  { id: 'cat_2', name: '交通',   color: '#FF9800', icon: '🚌', isDefault: true },
-  { id: 'cat_3', name: '餐饮',   color: '#F44336', icon: '🍔', isDefault: true },
-  { id: 'cat_4', name: '网购',   color: '#9C27B0', icon: '📦', isDefault: true },
-  { id: 'cat_5', name: '其他',   color: '#607D8B', icon: '💸', isDefault: true }
+  { id: 'cat_0', name: '日常',   color: '#8899B4', icon: '🛒', isDefault: true },
+  { id: 'cat_1', name: '社交',   color: '#B4A0C8', icon: '🎉', isDefault: true },
+  { id: 'cat_2', name: '交通',   color: '#C9A87C', icon: '🚌', isDefault: true },
+  { id: 'cat_3', name: '餐饮',   color: '#C47E8A', icon: '🍔', isDefault: true },
+  { id: 'cat_4', name: '网购',   color: '#9A8CB8', icon: '📦', isDefault: true },
+  { id: 'cat_5', name: '其他',   color: '#8E979F', icon: '💸', isDefault: true }
 ];
 
 // ---- 通用工具 ----
