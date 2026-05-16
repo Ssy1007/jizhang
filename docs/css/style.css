@@ -5,9 +5,9 @@
 
 /* ---- CSS 变量 ---- */
 :root {
-  --primary: #5B6ABF;
-  --primary-light: #EEF0FF;
-  --primary-dark: #3F4FA0;
+  --primary: #3D9E6B;
+  --primary-light: #EDF8F1;
+  --primary-dark: #2B7A4E;
 
   --expense: #E85D75;
   --income: #4FB89D;

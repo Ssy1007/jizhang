@@ -13,6 +13,22 @@ var expandedTxId = null;              // 当前展开详情的记录ID
 var expandedCats = [];               // 已展开的一级分类列表
 var expandedItems = [];              // 已展开的二级分类标识 "cat::item"
 
+/* ---- 物品名称图标映射 ---- */
+var ITEM_ICONS = {
+  '外卖': '🛵', '咖啡': '☕', '奶茶': '🧋', '公交': '🚌', '地铁': '🚇',
+  '打车': '🚗', '午餐': '🍱', '晚餐': '🍽', '早餐': '🥐', '零食': '🍿',
+  '水果': '🍎', '衣服': '👕', '鞋子': '👟', '化妆品': '💄', '书': '📖',
+  '游戏': '🎮', '电影': '🎬', '话费': '📱', '房租': '🏠', '水电': '💡',
+  '买菜': '🥬', '药品': '💊', '宠物': '🐱', '健身': '🏃', '理发': '💇',
+  '加油': '⛽', '快递': '📦', '保险': '🛡', '学习': '📚', '旅行': '✈'
+};
+
+/* 根据名称获取图标 */
+function getItemIcon(name) {
+  if (!name) return '🏷';
+  return ITEM_ICONS[name] || '🏷';
+}
+
 /* ===================================
    首页渲染
    =================================== */
@@ -113,7 +129,7 @@ function renderHomeContent() {
         html += '<div class="item-block" style="margin-bottom:6px;background:var(--bg);border-radius:8px;padding:8px 10px;">' +
           '<div class="item-header" data-item="' + name + '" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">' +
             '<div>' +
-              '<div style="font-size:14px;font-weight:600;">📌 ' + escapeHtml(name) + '</div>' +
+              '<div style="font-size:14px;font-weight:600;">' + getItemIcon(name) + ' ' + escapeHtml(name) + '</div>' +
               '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + nDailyAvg + ' · ' + (itemExpanded ? '▲ 收起' : '▼ 展开') + '</div>' +
             '</div>' +
             '<div style="text-align:right;">' +
@@ -135,7 +151,7 @@ function renderHomeContent() {
             var tDaily = daysSince(tx.date);
             var tDailyAvg = (tDaily > 0) ? formatMoney(tx.amount / tDaily) : formatMoney(tx.amount);
             html += '<div class="transaction-item" data-id="' + tx.id + '" style="margin-top:4px;padding:6px 0;border-bottom:1px dashed var(--divider);">' +
-              '<div class="tx-icon" style="font-size:16px;">' + txIcon + '</div>' +
+              '<div class="tx-icon" style="font-size:16px;">' + (tx.itemName ? getItemIcon(tx.itemName) : txIcon) + '</div>' +
               '<div class="tx-info">' +
                 '<div style="font-size:13px;">' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
                 '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg + '（' + tDaily + '天）' +
@@ -159,7 +175,7 @@ function renderHomeContent() {
         html += '<div class="item-block" style="margin-bottom:6px;background:var(--bg);border-radius:8px;padding:8px 10px;">' +
           '<div class="item-header" data-item="" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;">' +
             '<div>' +
-              '<div style="font-size:14px;font-weight:600;">📌 其他</div>' +
+              '<div style="font-size:14px;font-weight:600;">🏷 其他</div>' +
               '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + nDailyAvg + ' · ' + (itemExpanded ? '▲ 收起' : '▼ 展开') + '</div>' +
             '</div>' +
             '<div style="text-align:right;">' +
@@ -169,18 +185,18 @@ function renderHomeContent() {
           '</div>';
 
         if (itemExpanded) {
-          var txs = nameTxs[''] || [];
-          txs.sort(function (a, b) { return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt); });
-          txs.forEach(function (tx) {
-            var icon = findCategoryByName(tx.category);
-            var txIcon = icon ? icon.icon : '💰';
-            var tDaily = daysSince(tx.date);
-            var tDailyAvg = (tDaily > 0) ? formatMoney(tx.amount / tDaily) : formatMoney(tx.amount);
+          var txs2 = nameTxs[''] || [];
+          txs2.sort(function (a, b) { return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt); });
+          txs2.forEach(function (tx) {
+            var icon2 = findCategoryByName(tx.category);
+            var txIcon2 = icon2 ? icon2.icon : '💰';
+            var tDaily2 = daysSince(tx.date);
+            var tDailyAvg2 = (tDaily2 > 0) ? formatMoney(tx.amount / tDaily2) : formatMoney(tx.amount);
             html += '<div class="transaction-item" data-id="' + tx.id + '" style="margin-top:4px;padding:6px 0;border-bottom:1px dashed var(--divider);">' +
-              '<div class="tx-icon" style="font-size:16px;">' + txIcon + '</div>' +
+              '<div class="tx-icon" style="font-size:16px;">' + txIcon2 + '</div>' +
               '<div class="tx-info">' +
                 '<div style="font-size:13px;">' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
-                '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg + '（' + tDaily + '天）' +
+                '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg2 + '（' + tDaily2 + '天）' +
                   (tx.quantity ? ' · 剩' + (tx.remaining != null ? tx.remaining : tx.quantity) + '/' + tx.quantity : '') + '</div>' +
               '</div>' +
               '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
@@ -422,8 +438,8 @@ function buildTransactionItemHtml(tx) {
   var html = '<div class="transaction-item' + (isExpanded ? ' expanded' : '') + '" data-id="' + tx.id + '">' +
     '<div class="tx-icon">' + icon + '</div>' +
     '<div class="tx-info">' +
-      '<div class="tx-category">' + (tx.category || '收入') + '</div>' +
-      (tx.note ? '<div class="tx-note">' + escapeHtml(tx.note) + '</div>' : '') +
+      '<div class="tx-category">' + (tx.itemName ? getItemIcon(tx.itemName) + ' ' + escapeHtml(tx.itemName) : (tx.category || '收入')) + '</div>' +
+      (tx.itemName ? '<div class="tx-note">' + (tx.category || '') + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' : (tx.note ? '<div class="tx-note">' + escapeHtml(tx.note) + '</div>' : '')) +
     '</div>' +
     '<div class="tx-amount ' + amountClass + '">' + prefix + '¥' + formatMoney(tx.amount) + '</div>' +
   '</div>' +
@@ -1548,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 /* 主题定义 */
 var THEMES = {
-  green:  { primary: '#5B6ABF', primaryLight: '#EEF0FF', primaryDark: '#3F4FA0' },
+  green:  { primary: '#3D9E6B', primaryLight: '#EDF8F1', primaryDark: '#2B7A4E' },
   blue:   { primary: '#5B8DEF', primaryLight: '#EEF4FF', primaryDark: '#3D6FD4' },
   pink:   { primary: '#E06090', primaryLight: '#FFF0F5', primaryDark: '#C04070' },
   purple: { primary: '#7C5CE7', primaryLight: '#F4F0FF', primaryDark: '#5C3DC0' },
