@@ -20,6 +20,7 @@ var expandedItems = [];              // 已展开的二级分类标识 "cat::ite
 function renderHomePage() {
   renderHomeSummary();
   bindHomePeriodTabs();
+  renderHomeCategoryBreakdown();
   renderHomeContent();
 }
 
@@ -1547,11 +1548,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
 /* 主题定义 */
 var THEMES = {
-  green:  { primary: '#4CAF50', primaryLight: '#E8F5E9', primaryDark: '#388E3C' },
-  blue:   { primary: '#2196F3', primaryLight: '#E3F2FD', primaryDark: '#1976D2' },
-  pink:   { primary: '#E91E63', primaryLight: '#FCE4EC', primaryDark: '#C2185B' },
-  purple: { primary: '#9C27B0', primaryLight: '#F3E5F5', primaryDark: '#7B1FA2' },
-  white:  { primary: '#607D8B', primaryLight: '#ECEFF1', primaryDark: '#455A64' }
+  green:  { primary: '#5B6ABF', primaryLight: '#EEF0FF', primaryDark: '#3F4FA0' },
+  blue:   { primary: '#5B8DEF', primaryLight: '#EEF4FF', primaryDark: '#3D6FD4' },
+  pink:   { primary: '#E06090', primaryLight: '#FFF0F5', primaryDark: '#C04070' },
+  purple: { primary: '#7C5CE7', primaryLight: '#F4F0FF', primaryDark: '#5C3DC0' },
+  white:  { primary: '#64748B', primaryLight: '#F1F5F9', primaryDark: '#475569' }
 };
 
 function applyTheme(themeName) {
