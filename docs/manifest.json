@@ -2,23 +2,21 @@
   "name": "记账",
   "short_name": "记账",
   "description": "简单好用的个人记账工具",
-  "start_url": "./index.html",
+  "start_url": "/jizhang/",
+  "scope": "/jizhang/",
+  "id": "/jizhang/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F5F5F5",
   "theme_color": "#4CAF50",
+  "lang": "zh-CN",
+  "categories": ["finance", "lifestyle"],
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjggMTI4Ij48cmVjdCB3aWR0aD0iMTI4IiBoZWlnaHQ9IjEyOCIgcng9IjI0IiBmaWxsPSIjNENBRjUwIi8+PHRleHQgeD0iNjQiIHk9IjgyIiBmb250LXNpemU9IjY0IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+PC90ZXh0Pjwvc3ZnPg==",
-      "sizes": "128x128",
-      "type": "image/svg+xml",
-      "purpose": "any"
-    },
-    {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9Ijk2IiBmaWxsPSIjNENBRjUwIi8+PHRleHQgeD0iMjU2IiB5PSIzMjgiIGZvbnQtc2l6ZT0iMjU2IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSJ3aGl0ZSI+PC90ZXh0Pjwvc3ZnPg==",
+      "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
