@@ -44,7 +44,7 @@ jobs:
       - name: Build APK
         working-directory: twa-project
         run: |
-          set -ex
+          set -eo pipefail
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           cat local.properties
@@ -53,7 +53,9 @@ jobs:
           curl -sL -o gradle.zip https://services.gradle.org/distributions/gradle-8.4-bin.zip
           ls -la gradle.zip
           unzip -q gradle.zip
-          ./gradle-8.4/bin/gradle assembleRelease --no-daemon --stacktrace --info 2>&1 | tail -100
+          ./gradle-8.4/bin/gradle assembleRelease --no-daemon --stacktrace 2>&1 | tee build.log
+          echo "=== Last 50 lines of build ==="
+          tail -50 build.log
         timeout-minutes: 20
 
       - name: Find and Upload APK
