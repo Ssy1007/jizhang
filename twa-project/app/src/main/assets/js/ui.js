@@ -724,7 +724,7 @@ function renderQuantityRanking(periodTx) {
   var qtyMap = {};
   var listMap = {};
   periodTx.forEach(function (tx) {
-    if (tx.type === 'expense' && tx.quantity) {
+    if (tx.type === 'expense' && tx.quantity && tx.quantity > 0) {
       var remain = (tx.remaining !== undefined) ? tx.remaining : tx.quantity;
       qtyMap[tx.category] = (qtyMap[tx.category] || 0) + remain;
       if (!listMap[tx.category]) listMap[tx.category] = [];
