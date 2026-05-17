@@ -776,7 +776,13 @@ function openStatsDetail(catName) {
   var allTx = getTransactions();
   var range = getPeriodRange(statsPeriod, new Date());
   var txs = allTx.filter(function (tx) {
-    return tx.category === catName && tx.date >= range.start && tx.date <= range.end;
+    if (tx.category !== catName) return false;
+    if (tx.date < range.start || tx.date > range.end) return false;
+    // 从数量Tab进来时只看有数量的
+    if (statsCurrentType === 'quantity') {
+      return tx.quantity && tx.quantity > 0;
+    }
+    return true;
   });
 
   document.getElementById('stats-detail-title').textContent = catName + ' - 明细';
