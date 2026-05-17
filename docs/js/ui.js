@@ -226,14 +226,13 @@ function renderHomeContent() {
     });
   });
 
-  // 绑定交易记录点击（展开详情）
-  container.querySelectorAll('.transaction-item').forEach(function (item) {
-    item.addEventListener('click', function (e) {
-      if (e.target.closest('button')) return;
-      var txId = item.getAttribute('data-id');
-      toggleTxDetail(txId);
-    });
-  });
+  // 绑定交易记录的点击和按钮（编辑/删除/数量加减）
+  bindTransactionClicks(container);
+
+  // 展开当前已展开的记录
+  if (expandedTxId) {
+    showTxDetail(expandedTxId);
+  }
 }
 
 /* 获取时间段天数 */
