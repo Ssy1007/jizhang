@@ -721,12 +721,14 @@ function renderPriceRanking(periodTx) {
 }
 
 function renderQuantityRanking(periodTx) {
-  var qtyMap = {};
+  var remainMap = {};
+  var totalMap = {};
   var listMap = {};
   periodTx.forEach(function (tx) {
     if (tx.type === 'expense' && tx.quantity && tx.quantity > 0) {
       var remain = (tx.remaining !== undefined) ? tx.remaining : tx.quantity;
-      qtyMap[tx.category] = (qtyMap[tx.category] || 0) + remain;
+      remainMap[tx.category] = (remainMap[tx.category] || 0) + remain;
+      totalMap[tx.category] = (totalMap[tx.category] || 0) + tx.quantity;
       if (!listMap[tx.category]) listMap[tx.category] = [];
       listMap[tx.category].push(tx);
     }
@@ -737,9 +739,9 @@ function renderQuantityRanking(periodTx) {
   var cats = getCategories();
 
   var sorted = cats.map(function (cat) {
-    return { name: cat.name, icon: cat.icon, color: cat.color, totalQty: qtyMap[cat.name] || 0, txs: listMap[cat.name] || [] };
-  }).filter(function (item) { return item.totalQty > 0; })
-    .sort(function (a, b) { return b.totalQty - a.totalQty; });
+    return { name: cat.name, icon: cat.icon, color: cat.color, remain: remainMap[cat.name] || 0, total: totalMap[cat.name] || 0, txs: listMap[cat.name] || [] };
+  }).filter(function (item) { return item.total > 0; })
+    .sort(function (a, b) { return b.remain - a.remain; });
 
   if (sorted.length === 0) {
     ranking.innerHTML = '';
@@ -748,15 +750,15 @@ function renderQuantityRanking(periodTx) {
   }
   emptyEl.style.display = 'none';
 
-  var maxQty = sorted[0].totalQty;
+  var maxQty = sorted[0].remain;
   var html = '';
   sorted.forEach(function (item, index) {
-    var barPercent = Math.round((item.totalQty / maxQty) * 100);
+    var barPercent = maxQty > 0 ? Math.round((item.remain / maxQty) * 100) : 0;
     html += '<div class="category-bar-item stat-item-clickable" data-cat="' + item.name + '">' +
       '<span style="font-size:14px;font-weight:600;color:var(--text-secondary);width:20px;">' + (index + 1) + '</span>' +
       '<div class="category-bar-color" style="background:' + item.color + ';"></div>' +
       '<div class="category-bar-info">' +
-        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.totalQty + ' 件</span></div>' +
+        '<div class="category-bar-name"><span>' + item.icon + ' ' + item.name + '</span><span>剩余 ' + item.remain + ' / 总量 ' + item.total + '</span></div>' +
         '<div class="category-bar-track"><div class="category-bar-fill" style="width:' + barPercent + '%;background:' + item.color + ';"></div></div>' +
       '</div>' +
     '</div>';
