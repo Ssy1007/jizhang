@@ -462,6 +462,15 @@ body {
 .btn-danger   { background: var(--expense); color: #FFFFFF; }
 .btn-outline  { background: transparent; border: 1px solid var(--divider); color: var(--text); }
 
+/* ---- 手风琴层级缩进 ---- */
+.cat-items {
+  padding-left: 12px;
+}
+
+.item-block {
+  padding-left: 8px;
+}
+
 /* ---- 交易列表 ---- */
 .transaction-list { list-style: none; }
 
@@ -489,13 +498,23 @@ body {
   flex-shrink: 0;
 }
 
-/* 第三级（item-block 内）图标缩小 */
+/* 第三级（item-block 内）图标缩小 + 缩进 */
 .item-block .tx-icon {
   width: 26px;
   height: 26px;
   border-radius: 7px;
   font-size: 13px;
   margin-right: 8px;
+}
+
+.item-block .transaction-item {
+  padding-left: 8px;
+  border-bottom: 1px dashed var(--divider);
+  margin-top: 2px;
+}
+
+.item-block .tx-detail {
+  margin-left: 8px;
 }
 
 .tx-info { flex: 1; min-width: 0; }
