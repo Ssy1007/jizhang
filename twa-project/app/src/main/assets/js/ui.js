@@ -406,7 +406,7 @@ function renderHomeTransactionList() {
 /* 构建单条交易记录的HTML */
 function buildTransactionItemHtml(tx) {
   var cat = findCategoryByName(tx.category);
-  var icon = cat ? cat.icon : '💰';
+  var icon = (tx.itemName ? getItemIcon(tx.itemName) : (cat ? cat.icon : '💰'));
   var amountClass = tx.type === 'expense' ? 'expense' : 'income';
   var prefix = tx.type === 'expense' ? '-' : '+';
   var isExpanded = (expandedTxId === tx.id);
