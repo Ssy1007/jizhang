@@ -141,24 +141,12 @@ function renderHomeContent() {
             '<div style="height:100%;width:' + nPct + '%;background:' + cat.color + ';border-radius:2px;"></div>' +
           '</div>';
 
-        // 如果展开，显示具体交易
+        // 如果展开，显示具体交易（使用完整详情模板）
         if (itemExpanded) {
           var txs = nameTxs[name] || [];
           txs.sort(function (a, b) { return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt); });
           txs.forEach(function (tx) {
-            var icon = findCategoryByName(tx.category);
-            var txIcon = icon ? icon.icon : '💰';
-            var tDaily = daysSince(tx.date);
-            var tDailyAvg = (tDaily > 0) ? formatMoney(tx.amount / tDaily) : formatMoney(tx.amount);
-            html += '<div class="transaction-item" data-id="' + tx.id + '" style="margin-top:4px;padding:6px 0;border-bottom:1px dashed var(--divider);">' +
-              '<div class="tx-icon" style="font-size:16px;">' + (tx.itemName ? getItemIcon(tx.itemName) : txIcon) + '</div>' +
-              '<div class="tx-info">' +
-                '<div style="font-size:13px;">' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
-                '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg + '（' + tDaily + '天）' +
-                  (tx.quantity ? ' · 剩' + (tx.remaining != null ? tx.remaining : tx.quantity) + '/' + tx.quantity : '') + '</div>' +
-              '</div>' +
-              '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
-            '</div>';
+            html += buildTransactionItemHtml(tx);
           });
         }
 
@@ -188,19 +176,7 @@ function renderHomeContent() {
           var txs2 = nameTxs[''] || [];
           txs2.sort(function (a, b) { return b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt); });
           txs2.forEach(function (tx) {
-            var icon2 = findCategoryByName(tx.category);
-            var txIcon2 = icon2 ? icon2.icon : '💰';
-            var tDaily2 = daysSince(tx.date);
-            var tDailyAvg2 = (tDaily2 > 0) ? formatMoney(tx.amount / tDaily2) : formatMoney(tx.amount);
-            html += '<div class="transaction-item" data-id="' + tx.id + '" style="margin-top:4px;padding:6px 0;border-bottom:1px dashed var(--divider);">' +
-              '<div class="tx-icon" style="font-size:16px;">' + txIcon2 + '</div>' +
-              '<div class="tx-info">' +
-                '<div style="font-size:13px;">' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
-                '<div style="font-size:11px;color:var(--text-secondary);">日均 ¥' + tDailyAvg2 + '（' + tDaily2 + '天）' +
-                  (tx.quantity ? ' · 剩' + (tx.remaining != null ? tx.remaining : tx.quantity) + '/' + tx.quantity : '') + '</div>' +
-              '</div>' +
-              '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
-            '</div>';
+            html += buildTransactionItemHtml(tx);
           });
         }
 
@@ -812,11 +788,12 @@ function openStatsDetail(catName) {
     var html = '';
     txs.forEach(function (tx) {
       var remain = (tx.quantity) ? ((tx.remaining !== undefined) ? tx.remaining : tx.quantity) : null;
+      var icon = findCategoryByName(tx.category);
       html += '<div class="transaction-item" style="cursor:default;">' +
-        '<div class="tx-icon">' + (findCategoryByName(tx.category) ? findCategoryByName(tx.category).icon : '💰') + '</div>' +
+        '<div class="tx-icon">' + (tx.itemName ? getItemIcon(tx.itemName) : (icon ? icon.icon : '💰')) + '</div>' +
         '<div class="tx-info">' +
-          '<div class="tx-category">' + (tx.note || tx.category) + '</div>' +
-          '<div style="font-size:12px;color:var(--text-secondary);">' + tx.date + '</div>' +
+          '<div class="tx-category">' + (tx.itemName ? getItemIcon(tx.itemName) + ' ' + escapeHtml(tx.itemName) : (tx.note || tx.category)) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-secondary);">' + tx.category + ' · ' + tx.date + (tx.note ? ' · ' + escapeHtml(tx.note) : '') + '</div>' +
         '</div>' +
         '<div class="tx-amount expense">-¥' + formatMoney(tx.amount) + '</div>' +
       '</div>';
